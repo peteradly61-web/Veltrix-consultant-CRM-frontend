@@ -1,0 +1,6 @@
+veltrix-frontend/node_modules/
+veltrix-frontend/.next/
+veltrix-frontend/.env.local
+.env
+.DS_Store
+Thumbs.db
