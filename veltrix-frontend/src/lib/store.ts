@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { VeltrixState, Lead, EmailTemplate, BDRSession, DataPool, BatchAllocation, UserSession } from '../types';
+import { VeltrixState, Lead, EmailTemplate, BDRSession, DataPool, BatchAllocation, UserSession, UserAccount } from '../types';
 
 // Helper to replace template variables with lead data
 const replaceVariables = (text: string, lead?: Lead): string => {
@@ -206,6 +206,7 @@ const MOCK_BATCHES: BatchAllocation[] = [
     bdrName: 'Elena Rostova',
     leadCount: 100,
     status: 'completed',
+    allocatedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
   }
 ];
 
