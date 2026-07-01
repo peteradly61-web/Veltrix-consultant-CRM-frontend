@@ -7,10 +7,11 @@ export interface Lead {
   title: string;
   industry: string;
   phone?: string;
-  status: 'new' | 'contacted' | 'skipped' | 'disqualified';
+  status: 'new' | 'contacted' | 'replied' | 'skipped' | 'disqualified';
   createdAt: string; // ISO Timestamp
   comment?: string;
   savedToOpportunities?: boolean;
+  savedBy?: string;
 }
 
 export interface Meeting {
@@ -22,6 +23,7 @@ export interface Meeting {
   time: string;       // HH:MM
   notes?: string;
   createdAt: string;  // ISO Timestamp
+  bookedBy?: string;
 }
 
 export interface EmailTemplate {
@@ -127,6 +129,8 @@ export interface VeltrixState {
   resetBdrQueue: () => void;
   
   // Extended BDR Actions
+  updateLead: (leadId: string, updatedFields: Partial<Lead>) => void;
+  sendLeadEmailStandalone: (leadId: string) => void;
   updateLeadStatus: (leadId: string, status: Lead['status']) => void;
   updateLeadComment: (leadId: string, comment: string) => void;
   toggleSaveLeadToOpportunities: (leadId: string) => void;

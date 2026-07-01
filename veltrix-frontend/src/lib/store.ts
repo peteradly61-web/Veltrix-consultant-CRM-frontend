@@ -26,7 +26,8 @@ const MOCK_LEADS: Lead[] = [
     status: 'new',
     createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
     comment: 'Interested in logistics workflow automation.',
-    savedToOpportunities: false
+    savedToOpportunities: true,
+    savedBy: 'Jordan Vance'
   },
   {
     id: 'lead-2',
@@ -40,7 +41,8 @@ const MOCK_LEADS: Lead[] = [
     status: 'new',
     createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     comment: 'Need details on CRM sync integrations.',
-    savedToOpportunities: false
+    savedToOpportunities: true,
+    savedBy: 'Elena Rostova'
   },
   {
     id: 'lead-3',
@@ -68,7 +70,8 @@ const MOCK_LEADS: Lead[] = [
     status: 'new',
     createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     comment: 'Wants to review data decay benchmarks.',
-    savedToOpportunities: false
+    savedToOpportunities: true,
+    savedBy: 'Alex Rivera'
   },
   {
     id: 'lead-5',
@@ -281,7 +284,8 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
         date: '2026-07-02',
         time: '10:00',
         notes: 'Discuss outbound pipeline automation issues.',
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+        bookedBy: 'Jordan Vance'
       },
       {
         id: 'meet-2',
@@ -291,7 +295,19 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
         date: '2026-07-03',
         time: '14:30',
         notes: 'Provide a walk-through of the main dashboard.',
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        bookedBy: 'Elena Rostova'
+      },
+      {
+        id: 'meet-3',
+        leadName: 'Elena Petrova',
+        company: 'Cyberdyne Systems',
+        title: 'CTO Deep-Dive Session',
+        date: '2026-07-06',
+        time: '11:15',
+        notes: 'Tech architecture review on data decay controls.',
+        createdAt: new Date().toISOString(),
+        bookedBy: 'Alex Rivera'
       }
     ],
 
@@ -549,14 +565,75 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
       get().addRealtimeLog('BDR workspace queue reset for demonstration.', 'info');
     },
 
-    updateLeadStatus: (leadId, status) => {
+    updateLead: (leadId, updatedFields) => {
       const { leads } = get();
-      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, status } : l);
+      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, ...updatedFields } : l);
       const lead = leads.find(l => l.id === leadId);
       set({ leads: updatedLeads });
       if (lead) {
-        get().addRealtimeLog(`Updated status of ${lead.company} to ${status.toUpperCase()}.`, 'success');
+        get().addRealtimeLog(`Updated details for lead: ${lead.company}.`, 'info');
       }
+    },
+
+    sendLeadEmailStandalone: (leadId) => {
+      const { leads, dailyProgress, bdrAgents, user } = get();
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, status: 'contacted' as const } : l);
+
+      const updatedAgents = bdrAgents.map(agent => {
+        if (agent.name === user?.name || (user?.role === 'bdr' && agent.id === 'bdr-1')) {
+          return {
+            ...agent,
+            emailsSent: agent.emailsSent + 1,
+            lastActiveTime: new Date().toISOString(),
+            status: 'active' as const
+          };
+        }
+        return agent;
+      });
+
+      set({
+        leads: updatedLeads,
+        dailyProgress: {
+          ...dailyProgress,
+          sent: dailyProgress.sent + 1
+        },
+        bdrAgents: updatedAgents
+      });
+
+      get().addRealtimeLog(`Direct email dispatched to ${lead.firstName} ${lead.lastName} (${lead.company}).`, 'success');
+    },
+
+    updateLeadStatus: (leadId, status) => {
+      const { leads, bdrAgents, user } = get();
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+
+      const oldStatus = lead.status;
+      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, status } : l);
+      
+      let updatedAgents = bdrAgents;
+      if (status === 'replied' && oldStatus !== 'replied') {
+        updatedAgents = bdrAgents.map(agent => {
+          if (agent.name === user?.name || (user?.role === 'bdr' && agent.id === 'bdr-1')) {
+            const newEmailsSent = agent.emailsSent || 1;
+            const oldReplies = Math.round(newEmailsSent * agent.replyRate / 100);
+            const newReplies = oldReplies + 1;
+            const newReplyRate = Math.round((newReplies / newEmailsSent) * 1000) / 10;
+            return {
+              ...agent,
+              replyRate: Math.min(newReplyRate, 100),
+              lastActiveTime: new Date().toISOString()
+            };
+          }
+          return agent;
+        });
+      }
+
+      set({ leads: updatedLeads, bdrAgents: updatedAgents });
+      get().addRealtimeLog(`Updated status of ${lead.company} to ${status.toUpperCase()}.`, 'success');
     },
 
     updateLeadComment: (leadId, comment) => {
@@ -570,14 +647,20 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
     },
 
     toggleSaveLeadToOpportunities: (leadId) => {
-      const { leads } = get();
+      const { leads, user } = get();
       const lead = leads.find(l => l.id === leadId);
       if (!lead) return;
+      const isSaved = !lead.savedToOpportunities;
       const updatedLeads = leads.map(l => 
-        l.id === leadId ? { ...l, savedToOpportunities: !l.savedToOpportunities } : l
+        l.id === leadId 
+          ? { 
+              ...l, 
+              savedToOpportunities: isSaved,
+              savedBy: isSaved ? (user?.name || 'Alex Rivera') : undefined
+            } 
+          : l
       );
       set({ leads: updatedLeads });
-      const isSaved = !lead.savedToOpportunities;
       get().addRealtimeLog(
         isSaved 
           ? `Lead ${lead.company} saved to Opportunities.` 
@@ -587,11 +670,12 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
     },
 
     addMeeting: (meeting) => {
-      const { meetings } = get();
+      const { meetings, user } = get();
       const newMeeting = {
         ...meeting,
         id: `meet-${Date.now()}`,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        bookedBy: user?.name || 'Alex Rivera'
       };
       set({ meetings: [newMeeting, ...meetings] });
       get().addRealtimeLog(`Meeting booked with ${meeting.leadName} (${meeting.company}).`, 'success');

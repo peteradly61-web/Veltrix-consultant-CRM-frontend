@@ -8,6 +8,9 @@ import MonitoringGrid from './components/MonitoringGrid';
 import DataRotator from './components/DataRotator';
 import BDRPerformanceAnalytics from './components/BDRPerformanceAnalytics';
 import UserManagement from './components/UserManagement';
+import AdminOpportunities from './components/AdminOpportunities';
+import AdminMeetings from './components/AdminMeetings';
+import AdminCalendar from './components/AdminCalendar';
 import { ShieldAlert, Sparkles, Terminal, Bell, Hammer } from 'lucide-react';
 
 function PlaceholderView({ title }: { title: string }) {
@@ -83,7 +86,7 @@ export default function AdminCommandCenter() {
               className={`px-3 py-1.5 rounded text-xs font-bold border transition-all ${
                 activeAdminTab === 'operations'
                   ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-600'
+                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-650'
               }`}
             >
               Operations Command Center
@@ -93,7 +96,7 @@ export default function AdminCommandCenter() {
               className={`px-3 py-1.5 rounded text-xs font-bold border transition-all ${
                 activeAdminTab === 'performance'
                   ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-600'
+                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-650'
               }`}
             >
               BDR Performance Dashboard
@@ -168,7 +171,18 @@ export default function AdminCommandCenter() {
           
           {activeAdminTab === 'accounts' && <UserManagement />}
 
-          {activeAdminTab !== 'operations' && activeAdminTab !== 'performance' && activeAdminTab !== 'accounts' && (
+          {activeAdminTab === 'opportunities' && <AdminOpportunities />}
+
+          {activeAdminTab === 'meetings' && <AdminMeetings />}
+
+          {activeAdminTab === 'calendar' && <AdminCalendar />}
+
+          {activeAdminTab !== 'operations' && 
+           activeAdminTab !== 'performance' && 
+           activeAdminTab !== 'accounts' && 
+           activeAdminTab !== 'opportunities' && 
+           activeAdminTab !== 'meetings' && 
+           activeAdminTab !== 'calendar' && (
             <PlaceholderView title={activeAdminTab.charAt(0).toUpperCase() + activeAdminTab.slice(1)} />
           )}
         </main>

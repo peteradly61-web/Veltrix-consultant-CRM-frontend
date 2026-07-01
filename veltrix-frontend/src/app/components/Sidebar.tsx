@@ -12,7 +12,8 @@ import {
   CheckSquare, 
   Calendar, 
   HelpCircle, 
-  LogOut 
+  LogOut,
+  Layers
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,9 +37,6 @@ export default function Sidebar({ activeTab }: SidebarProps) {
     router.push('/');
   };
 
-  // Define visibility for BDR
-  const bdrVisibleTabs = ['Leads', 'Opportunities', 'Meetings', 'Tasks', 'Calendar'];
-
   const getTabName = (name: string) => name.toLowerCase();
 
   const handleTabClick = (name: string) => {
@@ -47,7 +45,8 @@ export default function Sidebar({ activeTab }: SidebarProps) {
        else setActiveBdrTab(getTabName(name));
     } else {
        if (name === 'Home') setActiveAdminTab('operations');
-       else if (name === 'Opportunities') setActiveAdminTab('performance');
+       else if (name === 'Team Performance') setActiveAdminTab('performance');
+       else if (name === 'Opportunities') setActiveAdminTab('opportunities');
        else setActiveAdminTab(getTabName(name));
     }
   };
@@ -58,28 +57,34 @@ export default function Sidebar({ activeTab }: SidebarProps) {
        return activeBdrTab === getTabName(name);
     } else {
        if (name === 'Home') return activeAdminTab === 'operations';
-       if (name === 'Opportunities') return activeAdminTab === 'performance';
+       if (name === 'Team Performance') return activeAdminTab === 'performance';
+       if (name === 'Opportunities') return activeAdminTab === 'opportunities';
        return activeAdminTab === getTabName(name);
     }
   };
 
-  const allMenuItems = [
-    { name: 'Home', icon: Home },
-    { name: 'Accounts', icon: Users },
-    { name: 'Contacts', icon: UserCheck },
-    { name: 'Leads', icon: Compass },
-    { name: 'Opportunities', icon: TrendingUp },
-    { name: 'Emails', icon: Mail },
-    { name: 'Meetings', icon: CalendarRange },
-    { name: 'Calls', icon: Phone },
-    { name: 'Tasks', icon: CheckSquare },
-    { name: 'Calendar', icon: Calendar },
-    { name: 'Support', icon: HelpCircle },
-  ];
-
-  const menuItems = allMenuItems.filter(item => 
-    user?.role === 'admin' ? true : bdrVisibleTabs.includes(item.name)
-  );
+  const menuItems = user?.role === 'admin'
+    ? [
+        { name: 'Home', icon: Home },
+        { name: 'Accounts', icon: Users },
+        { name: 'Contacts', icon: UserCheck },
+        { name: 'Leads', icon: Compass },
+        { name: 'Team Performance', icon: TrendingUp },
+        { name: 'Opportunities', icon: Layers },
+        { name: 'Emails', icon: Mail },
+        { name: 'Meetings', icon: CalendarRange },
+        { name: 'Calls', icon: Phone },
+        { name: 'Tasks', icon: CheckSquare },
+        { name: 'Calendar', icon: Calendar },
+        { name: 'Support', icon: HelpCircle },
+      ]
+    : [
+        { name: 'Leads', icon: Compass },
+        { name: 'Opportunities', icon: TrendingUp },
+        { name: 'Meetings', icon: CalendarRange },
+        { name: 'Tasks', icon: CheckSquare },
+        { name: 'Calendar', icon: Calendar },
+      ];
 
   return (
     <aside className="w-60 min-h-screen bg-[#f3f4f6] border-r border-gray-300 flex flex-col justify-between shrink-0 shadow-sm text-slate-700">
