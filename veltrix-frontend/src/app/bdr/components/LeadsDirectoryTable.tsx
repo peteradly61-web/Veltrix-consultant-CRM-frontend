@@ -6,11 +6,19 @@ import { Lead } from '@/types';
 import { Search, Plus, ChevronLeft, ChevronRight, Filter, Settings, ShieldAlert, Circle, Check, X, User } from 'lucide-react';
 
 export default function LeadsDirectoryTable() {
-  const { user, leads, currentIndex } = useVeltrixStore();
+  const { user, currentIndex } = useVeltrixStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Server-side Leads State
+  const [dbLeads, setDbLeads] = useState<any[]>([]);
+  const [loadingDbLeads, setLoadingDbLeads] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+  const limit = 50;
 
   // Form states for creating a new lead
   const [newLeadForm, setNewLeadForm] = useState({
@@ -23,74 +31,114 @@ export default function LeadsDirectoryTable() {
     phone: '',
   });
 
-  // Access the store state setter directly or manipulate local leads if needed
-  // Since we want the created lead to populate in the queue and table, let's add it to the Zustand store.
   const stateStore = useVeltrixStore();
+
+  const parseNameFromEmail = (email: string) => {
+    if (!email) return { firstName: 'Contact', lastName: 'Person' };
+    const username = email.split('@')[0];
+    const splitChars = ['.', '_', '-'];
+    for (const char of splitChars) {
+      if (username.includes(char)) {
+        const parts = username.split(char);
+        if (parts.length >= 2) {
+          const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          const last = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+          return { firstName: first, lastName: last };
+        }
+      }
+    }
+    const formattedFirst = username.charAt(0).toUpperCase() + username.slice(1);
+    return { firstName: formattedFirst, lastName: 'Rep' };
+  };
+
+  // API Fetcher for BDR Leads
+  const fetchDbLeads = async () => {
+    if (!user) return;
+    setLoadingDbLeads(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: searchQuery,
+        status: statusFilter,
+        bdr: user.role === 'bdr' ? user.name : 'all'
+      });
+      const res = await fetch(`/api/data-vault/all-leads?${queryParams.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setDbLeads(json.data);
+        setTotalPages(json.pagination.totalPages);
+        setTotalLeadsCount(json.pagination.total);
+      }
+    } catch (err) {
+      console.error('Failed to fetch directory leads:', err);
+    } finally {
+      setLoadingDbLeads(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchDbLeads();
+  }, [page, searchQuery, statusFilter, user]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedLeadIds(filteredLeads.map(l => l.id));
+      setSelectedLeadIds(filteredLeads.map(l => l.email));
     } else {
       setSelectedLeadIds([]);
     }
   };
 
-  const handleSelectRow = (leadId: string) => {
+  const handleSelectRow = (email: string) => {
     setSelectedLeadIds(prev => 
-      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
+      prev.includes(email) ? prev.filter(id => id !== email) : [...prev, email]
     );
   };
 
-  // Filter leads based on query and status dropdown
-  const filteredLeads = leads
-    .filter(lead => {
-      if (user?.role === 'bdr') {
-        return lead.assignedTo === user.name;
-      }
-      return true;
-    })
-    .filter(lead => {
-      const matchesSearch = 
-        lead.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.industry.toLowerCase().includes(searchQuery.toLowerCase());
+  // Map database leads
+  const filteredLeads = dbLeads.map(lead => {
+    const { firstName, lastName } = parseNameFromEmail(lead.email);
+    return {
+      ...lead,
+      firstName,
+      lastName
+    };
+  });
 
-      const matchesStatus = 
-        statusFilter === 'all' || 
-        lead.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-
-  const handleCreateLead = (e: React.FormEvent) => {
+  const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeadForm.company || !newLeadForm.email || !newLeadForm.firstName) return;
 
-    const newLead: Lead = {
-      id: `lead-${Date.now()}`,
-      firstName: newLeadForm.firstName,
-      lastName: newLeadForm.lastName,
-      company: newLeadForm.company,
-      email: newLeadForm.email,
-      title: newLeadForm.title || 'Decision Maker',
-      industry: newLeadForm.industry || 'Industrial Operations',
-      phone: newLeadForm.phone || '+1 (555) 012-3456',
+    const assignmentsToAdd = [{
+      email: newLeadForm.email.toLowerCase(),
+      assignedTo: user?.name || 'Alex Rivera',
       status: 'new',
-      createdAt: new Date().toISOString(),
-      comment: '',
-      savedToOpportunities: false
-    };
+      comment: `Manual creation.\nCompany: ${newLeadForm.company}\nPhone: ${newLeadForm.phone || 'N/A'}\nIndustry: ${newLeadForm.industry || 'N/A'}`
+    }];
 
-    // Update the Zustand store's leads array directly using Zustand setState
-    const currentLeadsList = useVeltrixStore.getState().leads;
-    useVeltrixStore.setState({
-      leads: [...currentLeadsList, newLead]
-    });
-    
-    // Add real-time log payload to display in operations console
-    stateStore.addRealtimeLog(`Lead ${newLead.company} (${newLead.firstName} ${newLead.lastName}) created manually.`, 'success');
+    try {
+      const res = await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'assign',
+          assignments: assignmentsToAdd
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchDbLeads();
+        stateStore.addRealtimeLog(`Lead ${newLeadForm.company} created manually on disk.`, 'success');
+      } else {
+        alert(`Failed to create lead: ${json.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
 
     // Reset Form & Close Modal
     setNewLeadForm({
@@ -168,12 +216,23 @@ export default function LeadsDirectoryTable() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <span className="font-bold">1-{filteredLeads.length} of {filteredLeads.length}</span>
+          <span className="font-bold">
+            {totalLeadsCount > 0 ? Math.min(totalLeadsCount, (page - 1) * limit + 1) : 0}-
+            {Math.min(totalLeadsCount, page * limit)} of {totalLeadsCount}
+          </span>
           <div className="flex items-center gap-1">
-            <button className="p-1 rounded hover:bg-gray-200 text-slate-400 cursor-not-allowed">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1 rounded hover:bg-gray-200 text-slate-500 disabled:opacity-40"
+            >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <button className="p-1 rounded hover:bg-gray-200 text-slate-400 cursor-not-allowed">
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-1 rounded hover:bg-gray-200 text-slate-500 disabled:opacity-40"
+            >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -209,8 +268,8 @@ export default function LeadsDirectoryTable() {
               </tr>
             ) : (
               filteredLeads.map((lead) => {
-                const isSelected = selectedLeadIds.includes(lead.id);
-                const isQueueActive = lead.id === leads[currentIndex]?.id;
+                const isSelected = selectedLeadIds.includes(lead.email);
+                const isQueueActive = false;
 
                 let statusBadge = 'bg-slate-100 text-slate-700 border-slate-200';
                 if (lead.status === 'contacted') statusBadge = 'bg-emerald-50 text-emerald-700 border-emerald-250';
@@ -228,7 +287,7 @@ export default function LeadsDirectoryTable() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => handleSelectRow(lead.id)}
+                        onChange={() => handleSelectRow(lead.email)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
@@ -238,7 +297,7 @@ export default function LeadsDirectoryTable() {
                           {lead.company}
                         </span>
                         <span className="text-[10px] text-gray-400 font-medium">
-                          {lead.firstName} {lead.lastName} — {lead.title}
+                          {lead.firstName} {lead.lastName} — {lead.title || 'Purchasing Manager'}
                         </span>
                       </div>
                     </td>
@@ -247,17 +306,17 @@ export default function LeadsDirectoryTable() {
                         {lead.status}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-[11px] text-slate-600">
+                    <td className="px-6 py-3.5 font-mono text-[11px] text-slate-650">
                       {lead.email}
                     </td>
                     <td className="px-6 py-3.5 text-slate-500 flex items-center gap-1.5">
                       <div className="w-5 h-5 rounded-full bg-slate-100 border flex items-center justify-center font-bold text-[9px] text-slate-600">
-                        AR
+                        {user?.name ? user.name.slice(0, 2).toUpperCase() : 'BDR'}
                       </div>
-                      <span className="font-semibold text-[11px]">Alex Rivera</span>
+                      <span className="font-semibold text-[11px]">{user?.name || 'BDR'}</span>
                     </td>
                     <td className="px-6 py-3.5 text-[11px] text-slate-400 font-medium font-sans">
-                      Yesterday 23:22
+                      {new Date(lead.createdAt).toLocaleDateString()}
                     </td>
                   </tr>
                 );

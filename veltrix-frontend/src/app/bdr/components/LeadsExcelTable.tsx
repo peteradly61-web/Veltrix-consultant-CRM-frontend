@@ -30,18 +30,21 @@ interface LeadsExcelTableProps {
 export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
   const { 
     user,
-    leads, 
-    updateLead,
+    templates,
     sendLeadEmailStandalone,
-    updateLeadStatus, 
-    updateLeadComment, 
-    toggleSaveLeadToOpportunities,
-    addMeeting,
-    rotateLeadsData
+    addMeeting
   } = useVeltrixStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Server-side Leads State
+  const [dbLeads, setDbLeads] = useState<any[]>([]);
+  const [loadingDbLeads, setLoadingDbLeads] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+  const limit = 50;
   
   // Inline comment state for tracker/feedback
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
 
   // Book Meeting modal state
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
-  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<Lead | null>(null);
+  const [selectedLeadForMeeting, setSelectedLeadForMeeting] = useState<any | null>(null);
   const [meetingForm, setMeetingForm] = useState({
     title: 'Intro Discovery Call',
     date: '',
@@ -60,7 +63,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
 
   // Edit Client Details modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<Lead | null>(null);
+  const [selectedLeadForEdit, setSelectedLeadForEdit] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({
     firstName: '',
     lastName: '',
@@ -73,7 +76,111 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     comment: ''
   });
 
-  const openEditModal = (lead: Lead) => {
+  const parseNameFromEmail = (email: string, company: string) => {
+    if (!email) return { firstName: 'Contact', lastName: 'Person' };
+    const username = email.split('@')[0];
+    const splitChars = ['.', '_', '-'];
+    for (const char of splitChars) {
+      if (username.includes(char)) {
+        const parts = username.split(char);
+        if (parts.length >= 2) {
+          const first = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+          const last = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+          return { firstName: first, lastName: last };
+        }
+      }
+    }
+    const formattedFirst = username.charAt(0).toUpperCase() + username.slice(1);
+    return { firstName: formattedFirst, lastName: 'Rep' };
+  };
+
+  // API Fetcher for BDR Leads
+  const fetchDbLeads = async () => {
+    if (!user) return;
+    setLoadingDbLeads(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: searchQuery,
+        status: statusFilter,
+        bdr: user.role === 'bdr' ? user.name : 'all'
+      });
+      if (mode === 'opportunities') {
+        queryParams.append('opportunities', 'true');
+      }
+      const res = await fetch(`/api/data-vault/all-leads?${queryParams.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setDbLeads(json.data);
+        setTotalPages(json.pagination.totalPages);
+        setTotalLeadsCount(json.pagination.total);
+      }
+    } catch (err) {
+      console.error('Failed to fetch leads:', err);
+    } finally {
+      setLoadingDbLeads(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchDbLeads();
+  }, [page, searchQuery, statusFilter, user, mode]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  // Database mutations via API
+  const updateLeadStatus = async (email: string, status: string) => {
+    try {
+      await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          assignments: [{ email, status }]
+        })
+      });
+      fetchDbLeads();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateLeadComment = async (email: string, comment: string) => {
+    try {
+      await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          assignments: [{ email, comment }]
+        })
+      });
+      fetchDbLeads();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const toggleSaveLeadToOpportunities = async (email: string, currentVal: boolean) => {
+    try {
+      await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          assignments: [{ email, savedToOpportunities: !currentVal }]
+        })
+      });
+      fetchDbLeads();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const openEditModal = (lead: any) => {
     setSelectedLeadForEdit(lead);
     setEditForm({
       firstName: lead.firstName || '',
@@ -81,7 +188,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
       email: lead.email || '',
       phone: lead.phone || '',
       company: lead.company || '',
-      title: lead.title || '',
+      title: lead.title || 'Purchasing Manager',
       industry: lead.industry || '',
       status: lead.status || 'new',
       comment: lead.comment || ''
@@ -89,48 +196,49 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     setIsEditModalOpen(true);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLeadForEdit) return;
     
-    updateLead(selectedLeadForEdit.id, {
-      firstName: editForm.firstName,
-      lastName: editForm.lastName,
-      email: editForm.email,
-      phone: editForm.phone,
-      company: editForm.company,
-      title: editForm.title,
-      industry: editForm.industry,
-      comment: editForm.comment
-    });
-
-    if (editForm.status !== selectedLeadForEdit.status) {
-      updateLeadStatus(selectedLeadForEdit.id, editForm.status);
+    try {
+      await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          assignments: [{
+            email: selectedLeadForEdit.email,
+            status: editForm.status,
+            comment: editForm.comment
+          }]
+        })
+      });
+      setIsEditModalOpen(false);
+      setSelectedLeadForEdit(null);
+      fetchDbLeads();
+    } catch (err) {
+      console.error(err);
     }
-
-    setIsEditModalOpen(false);
-    setSelectedLeadForEdit(null);
   };
 
   // Direct Email modal state
-  const { templates } = useVeltrixStore();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-  const [selectedLeadForEmail, setSelectedLeadForEmail] = useState<Lead | null>(null);
+  const [selectedLeadForEmail, setSelectedLeadForEmail] = useState<any | null>(null);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('temp-1');
 
-  const replaceVariablesLocal = (text: string, lead: Lead) => {
+  const replaceVariablesLocal = (text: string, lead: any) => {
     return text
       .replace(/{first_name}/g, lead.firstName)
       .replace(/{last_name}/g, lead.lastName)
       .replace(/{company_name}/g, lead.company)
-      .replace(/{title}/g, lead.title)
+      .replace(/{title}/g, lead.title || 'Purchasing Manager')
       .replace(/{industry}/g, lead.industry)
       .replace(/{email}/g, lead.email);
   };
 
-  const openEmailModal = (lead: Lead) => {
+  const openEmailModal = (lead: any) => {
     setSelectedLeadForEmail(lead);
     const defaultTemplate = templates.find(t => t.id === 'temp-1') || templates[0];
     if (defaultTemplate) {
@@ -145,7 +253,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     setIsEmailModalOpen(true);
   };
 
-  const handleTemplateChangeLocal = (templateId: string, lead: Lead) => {
+  const handleTemplateChangeLocal = (templateId: string, lead: any) => {
     const template = templates.find(t => t.id === templateId);
     if (template) {
       setSelectedTemplateId(templateId);
@@ -163,48 +271,30 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     setSelectedLeadForEmail(null);
   };
 
-  const processedLeads = leads
-    // Filter by mode
-    .filter(lead => mode === 'leads' ? true : lead.savedToOpportunities)
-    // Filter by assigned BDR if the user is a BDR
-    .filter(lead => {
-      if (user?.role === 'bdr') {
-        return lead.assignedTo === user.name;
-      }
-      return true;
-    })
-    // Filter by search query
-    .filter(lead => {
-      const query = searchQuery.toLowerCase();
-      return (
-        lead.company.toLowerCase().includes(query) ||
-        lead.firstName.toLowerCase().includes(query) ||
-        lead.lastName.toLowerCase().includes(query) ||
-        lead.email.toLowerCase().includes(query) ||
-        lead.industry.toLowerCase().includes(query) ||
-        (lead.comment && lead.comment.toLowerCase().includes(query))
-      );
-    })
-    // Filter by status dropdown
-    .filter(lead => statusFilter === 'all' || lead.status === statusFilter)
-    // Sort from newest (most recent createdAt)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const processedLeads = dbLeads.map((lead) => {
+    const { firstName, lastName } = parseNameFromEmail(lead.email, lead.company);
+    return {
+      ...lead,
+      firstName,
+      lastName
+    };
+  });
 
   // Inline Comment Save Handler
-  const handleCommentBlur = (leadId: string) => {
-    updateLeadComment(leadId, tempCommentText);
+  const handleCommentBlur = (email: string) => {
+    updateLeadComment(email, tempCommentText);
     setEditingCommentId(null);
-    setSavedFeedbackId(leadId);
+    setSavedFeedbackId(email);
     setTimeout(() => {
       setSavedFeedbackId(null);
     }, 1500);
   };
 
-  const handleCommentKeyDown = (e: React.KeyboardEvent, leadId: string) => {
+  const handleCommentKeyDown = (e: React.KeyboardEvent, email: string) => {
     if (e.key === 'Enter') {
-      updateLeadComment(leadId, tempCommentText);
+      updateLeadComment(email, tempCommentText);
       setEditingCommentId(null);
-      setSavedFeedbackId(leadId);
+      setSavedFeedbackId(email);
       setTimeout(() => {
         setSavedFeedbackId(null);
       }, 1500);
@@ -214,7 +304,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
   };
 
   // Open Book Meeting Modal
-  const openMeetingModal = (lead: Lead) => {
+  const openMeetingModal = (lead: any) => {
     const today = new Date().toISOString().split('T')[0];
     setSelectedLeadForMeeting(lead);
     setMeetingForm({
@@ -227,7 +317,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
   };
 
   // Submit booked meeting
-  const handleBookMeetingSubmit = (e: React.FormEvent) => {
+  const handleBookMeetingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLeadForMeeting || !meetingForm.date || !meetingForm.time) return;
 
@@ -241,10 +331,15 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     });
 
     // Auto-update lead status to contacted on booking a meeting
-    updateLeadStatus(selectedLeadForMeeting.id, 'contacted');
+    await updateLeadStatus(selectedLeadForMeeting.email, 'contacted');
 
     setIsMeetingModalOpen(false);
     setSelectedLeadForMeeting(null);
+  };
+
+  const rotateLeadsData = () => {
+    fetchDbLeads();
+    alert("Leads list refreshed from data vault.");
   };
 
   // Formatted date helper
@@ -368,7 +463,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                     {/* Pin/Save to Opportunities Column */}
                     <td className="px-4 py-3 text-center">
                       <button
-                        onClick={() => toggleSaveLeadToOpportunities(lead.id)}
+                        onClick={() => toggleSaveLeadToOpportunities(lead.email, lead.savedToOpportunities)}
                         className={`w-full py-1.5 px-2 rounded text-[10px] font-extrabold uppercase border flex items-center justify-center gap-1 transition-all shadow-sm ${
                           lead.savedToOpportunities 
                             ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800' 
@@ -420,7 +515,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                     <td className="px-4 py-3">
                       <select
                         value={lead.status}
-                        onChange={(e) => updateLeadStatus(lead.id, e.target.value as Lead['status'])}
+                        onChange={(e) => updateLeadStatus(lead.email, e.target.value)}
                         className={`px-2 py-1 rounded text-[10px] font-extrabold uppercase border focus:outline-none transition-colors ${statusColor}`}
                       >
                         <option value="new">New</option>
@@ -473,7 +568,39 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
             )}
           </tbody>
         </table>
-      </div>      {/* Edit Client Profile & Commentary Modal */}
+      </div>
+
+      {/* Pagination footer */}
+      {totalPages > 1 && (
+        <div className="border-t border-gray-200 px-6 py-4 bg-slate-50/50 flex items-center justify-between">
+          <div className="text-xs text-slate-500 font-semibold">
+            Showing <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, (page - 1) * limit + 1)}</span> to{' '}
+            <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, page * limit)}</span> of{' '}
+            <span className="font-extrabold text-slate-800">{totalLeadsCount}</span> leads
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Previous
+            </button>
+            <div className="text-[11px] font-extrabold text-slate-600 px-2">
+              Page {page} of {totalPages}
+            </div>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Client Profile & Commentary Modal */}
       {isEditModalOpen && selectedLeadForEdit && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border border-gray-300 rounded shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">

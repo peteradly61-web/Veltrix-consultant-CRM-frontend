@@ -88,13 +88,21 @@ interface DataVaultSector {
 }
 
 export default function AdminLeads() {
-  const { leads, bdrAgents, addLeads } = useVeltrixStore();
+  const { bdrAgents } = useVeltrixStore();
   
   // Search & Filter state for existing database
   const [searchQuery, setSearchQuery] = useState('');
   const [bdrFilter, setBdrFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   
+  // Server-side Leads State
+  const [dbLeads, setDbLeads] = useState<any[]>([]);
+  const [loadingDbLeads, setLoadingDbLeads] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeadsCount, setTotalLeadsCount] = useState(0);
+  const limit = 50;
+
   // Tab states for Ingestion desk
   const [ingestTab, setIngestTab] = useState<'vault' | 'manual'>('vault');
   
@@ -143,22 +151,39 @@ export default function AdminLeads() {
     fetchSectors();
   }, []);
 
-  // Filter master leads list
-  const filteredMasterLeads = leads
-    .filter(lead => {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = 
-        lead.company.toLowerCase().includes(query) ||
-        `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(query) ||
-        lead.email.toLowerCase().includes(query) ||
-        lead.industry.toLowerCase().includes(query);
-        
-      const matchesBdr = bdrFilter === 'all' || lead.assignedTo === bdrFilter;
-      const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-      
-      return matchesSearch && matchesBdr && matchesStatus;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Fetch paginated leads from database/Data-Vault
+  const fetchDbLeads = async () => {
+    setLoadingDbLeads(true);
+    try {
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        search: searchQuery,
+        bdr: bdrFilter,
+        status: statusFilter
+      });
+      const res = await fetch(`/api/data-vault/all-leads?${queryParams.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setDbLeads(json.data);
+        setTotalPages(json.pagination.totalPages);
+        setTotalLeadsCount(json.pagination.total);
+      }
+    } catch (err) {
+      console.error('Failed to fetch master leads:', err);
+    } finally {
+      setLoadingDbLeads(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchDbLeads();
+  }, [page, searchQuery, bdrFilter, statusFilter]);
+
+  // Reset page when query or filters change
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, bdrFilter, statusFilter]);
 
   // Handle drag events
   const handleDrag = (e: React.DragEvent) => {
@@ -231,14 +256,14 @@ export default function AdminLeads() {
   };
 
   // Perform deduplication check and split leads
-  const processIngestedLeads = (parsed: ParsedLead[]) => {
+  const processIngestedLeads = (parsed: ParsedLead[], existingLeads: any[]) => {
     const cleanList: ParsedLead[] = [];
     const dupList: { lead: ParsedLead; matchType: 'email' | 'company' | 'both' }[] = [];
 
     parsed.forEach(row => {
       // Check against current database leads
-      const dupByEmail = leads.some(l => l.email.toLowerCase() === row.email.toLowerCase());
-      const dupByCompany = leads.some(l => l.company.toLowerCase() === row.company.toLowerCase());
+      const dupByEmail = existingLeads.some(l => l.email.toLowerCase() === row.email.toLowerCase());
+      const dupByCompany = existingLeads.some(l => l.company.toLowerCase() === row.company.toLowerCase());
 
       if (dupByEmail && dupByCompany) {
         dupList.push({ lead: row, matchType: 'both' });
@@ -290,11 +315,24 @@ export default function AdminLeads() {
     }
   };
 
-  const handleFileSelected = (file: File) => {
+  const handleFileSelected = async (file: File) => {
     if (!file.name.endsWith('.csv')) {
       setUploadError("Only CSV files (.csv) are supported for lead ingestion.");
       setUploadSuccess(null);
       return;
+    }
+
+    setUploadSuccess("Analyzing database for duplicate leads...");
+    
+    let allExistingLeads: any[] = [];
+    try {
+      const res = await fetch('/api/data-vault/all-leads?limit=200000');
+      const json = await res.json();
+      if (json.success) {
+        allExistingLeads = json.data;
+      }
+    } catch (err) {
+      console.error("Failed to fetch leads for deduplication:", err);
     }
 
     const reader = new FileReader();
@@ -302,7 +340,7 @@ export default function AdminLeads() {
       try {
         const text = event.target?.result as string;
         const parsed = parseCSVContent(text);
-        processIngestedLeads(parsed);
+        processIngestedLeads(parsed, allExistingLeads);
       } catch (err: any) {
         setUploadError(err.message || "Failed to process CSV file.");
         setUploadSuccess(null);
@@ -359,8 +397,20 @@ export default function AdminLeads() {
     try {
       const res = await fetch(`/api/data-vault/leads?sector=${sectorId}&file=${fileName}`);
       const json = await res.json();
+
+      let allExistingLeads: any[] = [];
+      try {
+        const resAll = await fetch('/api/data-vault/all-leads?limit=200000');
+        const jsonAll = await resAll.json();
+        if (jsonAll.success) {
+          allExistingLeads = jsonAll.data;
+        }
+      } catch (err) {
+        console.error("Failed to fetch leads for deduplication:", err);
+      }
+
       if (json.success) {
-        processIngestedLeads(json.data);
+        processIngestedLeads(json.data, allExistingLeads);
         setActiveFile({ sectorName, fileName });
       } else {
         setUploadError(json.error || 'Failed to load leads from file');
@@ -377,14 +427,14 @@ export default function AdminLeads() {
   const totalAllocated = Object.values(allocations).reduce((sum, val) => sum + val, 0);
 
   // Submit and ingest Leads to Zustand store
-  const handleConfirmDistribution = () => {
+  const handleConfirmDistribution = async () => {
     if (cleanNewLeads.length === 0 || totalAllocated === 0) return;
     if (totalAllocated > cleanNewLeads.length) {
       alert("Error: Total distributed leads exceeds available new leads.");
       return;
     }
 
-    const leadsToAdd: Lead[] = [];
+    const assignmentsToAdd: any[] = [];
     let leadPointer = 0;
 
     // Iterate through BDR allocations and assign
@@ -394,44 +444,59 @@ export default function AdminLeads() {
         if (leadPointer >= cleanNewLeads.length) break;
         
         const parsedLead = cleanNewLeads[leadPointer];
-        const { firstName, lastName } = parseNameFromEmail(parsedLead.email, parsedLead.company);
         
-        leadsToAdd.push({
-          id: `lead-scraped-${Date.now()}-${leadPointer}`,
-          firstName,
-          lastName,
+        assignmentsToAdd.push({
           email: parsedLead.email,
-          company: parsedLead.company,
-          title: 'Purchasing Manager', // Default title mapping
-          industry: parsedLead.industry,
+          assignedTo: agent.name,
           status: 'new',
-          createdAt: new Date().toISOString(),
-          comment: `Website: ${parsedLead.website || 'N/A'}\nLocation: ${parsedLead.location || 'N/A'}\nSector: ${getSectorForIndustry(parsedLead.industry)}`,
-          website: parsedLead.website,
-          location: parsedLead.location,
-          savedToOpportunities: false,
-          assignedTo: agent.name
+          comment: `Website: ${parsedLead.website || 'N/A'}\nLocation: ${parsedLead.location || 'N/A'}\nSector: ${activeFile ? activeFile.sectorName : parsedLead.industry}`
         });
         leadPointer++;
       }
     });
 
-    // Add to Zustand Store
-    addLeads(leadsToAdd);
-    
-    // Clear ingestion states
-    handleResetWorkspace();
-    alert(`Successfully distributed and ingested ${leadsToAdd.length} leads across the BDR team.`);
+    try {
+      const res = await fetch('/api/data-vault/all-leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'assign',
+          assignments: assignmentsToAdd
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`Successfully distributed and assigned ${assignmentsToAdd.length} leads across the BDR team.`);
+        handleResetWorkspace();
+        fetchDbLeads(); // Refresh table
+      } else {
+        alert(`Failed to distribute leads: ${json.error}`);
+      }
+    } catch (err: any) {
+      alert(`Error distributing leads: ${err.message}`);
+    }
   };
 
-  // Delete lead from master DB helper
-  const handleDeleteMasterLead = (leadId: string) => {
-    if (confirm("Are you sure you want to remove this lead from the master database?")) {
-      const current = useVeltrixStore.getState().leads;
-      useVeltrixStore.setState({
-        leads: current.filter(l => l.id !== leadId)
-      });
-      useVeltrixStore.getState().addRealtimeLog(`Lead deleted from database by administrator.`, 'warning');
+  // Delete lead assignment helper
+  const handleDeleteMasterLead = async (email: string) => {
+    if (confirm("Are you sure you want to remove this lead's assignment?")) {
+      try {
+        const res = await fetch('/api/data-vault/all-leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'delete',
+            assignments: [{ email }]
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          fetchDbLeads();
+          useVeltrixStore.getState().addRealtimeLog(`Lead assignment removed by administrator.`, 'warning');
+        }
+      } catch (err: any) {
+        console.error('Failed to delete lead assignment:', err);
+      }
     }
   };
 
@@ -847,7 +912,7 @@ export default function AdminLeads() {
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500 border border-blue-600 shrink-0" />
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider">CRM Master Leads Database</h2>
             <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-mono">
-              {filteredMasterLeads.length} Leads
+              {totalLeadsCount} Leads
             </span>
           </div>
 
@@ -910,21 +975,33 @@ export default function AdminLeads() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-150 text-xs text-slate-700 bg-white">
-              {filteredMasterLeads.length === 0 ? (
+              {loadingDbLeads ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-semibold">
+                    <div className="flex items-center justify-center gap-2 text-slate-500">
+                      <svg className="animate-spin h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Loading master database leads...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : dbLeads.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-semibold">
                     No leads found matching current filter query parameters.
                   </td>
                 </tr>
               ) : (
-                filteredMasterLeads.map((lead) => {
+                dbLeads.map((lead) => {
                   let statusBadge = 'bg-slate-100 text-slate-700 border-slate-200';
                   if (lead.status === 'contacted') statusBadge = 'bg-emerald-50 text-emerald-700 border-emerald-250';
                   if (lead.status === 'replied') statusBadge = 'bg-blue-50 text-blue-700 border-blue-250';
                   if (lead.status === 'skipped') statusBadge = 'bg-amber-50 text-amber-700 border-amber-250';
                   if (lead.status === 'disqualified') statusBadge = 'bg-red-50 text-red-700 border-red-250';
 
-                  const sector = getSectorForIndustry(lead.industry);
+                  const { firstName, lastName } = parseNameFromEmail(lead.email, lead.company);
 
                   return (
                     <tr
@@ -950,7 +1027,7 @@ export default function AdminLeads() {
                             {lead.industry}
                           </span>
                           <span className="text-[9.5px] text-blue-500 font-extrabold uppercase tracking-wide mt-0.5">
-                            {sector}
+                            {lead.sectorName}
                           </span>
                         </div>
                       </td>
@@ -959,7 +1036,7 @@ export default function AdminLeads() {
                       <td className="px-6 py-3.5">
                         <div>
                           <span className="font-semibold text-slate-800 block text-[11px]">
-                            {lead.firstName} {lead.lastName}
+                            {firstName} {lastName}
                           </span>
                           <span className="text-[10px] text-slate-400 font-mono font-medium">
                             {lead.email}
@@ -972,7 +1049,7 @@ export default function AdminLeads() {
                         {lead.assignedTo ? (
                           <div className="flex items-center gap-1.5 text-slate-650">
                             <div className="w-5 h-5 rounded-full bg-slate-100 border text-slate-600 flex items-center justify-center font-bold text-[9px] uppercase">
-                              {lead.assignedTo.split(' ').map(n => n[0]).join('')}
+                              {lead.assignedTo.split(' ').map((n: string) => n[0]).join('')}
                             </div>
                             <span className="font-extrabold text-[10.5px] tracking-tight">{lead.assignedTo}</span>
                           </div>
@@ -1001,7 +1078,7 @@ export default function AdminLeads() {
                       {/* Delete actions */}
                       <td className="px-6 py-3.5 text-center">
                         <button
-                          onClick={() => handleDeleteMasterLead(lead.id)}
+                          onClick={() => handleDeleteMasterLead(lead.email)}
                           className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-slate-100 rounded transition-colors"
                           title="Delete lead permanently"
                         >
@@ -1015,6 +1092,36 @@ export default function AdminLeads() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination footer */}
+        {totalPages > 1 && (
+          <div className="border-t border-gray-200 px-6 py-4 bg-slate-50/50 flex items-center justify-between">
+            <div className="text-xs text-slate-500 font-semibold">
+              Showing <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, (page - 1) * limit + 1)}</span> to{' '}
+              <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, page * limit)}</span> of{' '}
+              <span className="font-extrabold text-slate-800">{totalLeadsCount}</span> leads
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <div className="text-[11px] font-extrabold text-slate-600 px-2">
+                Page {page} of {totalPages}
+              </div>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
 

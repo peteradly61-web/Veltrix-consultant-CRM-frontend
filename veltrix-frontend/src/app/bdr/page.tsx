@@ -22,13 +22,13 @@ function PlaceholderView({ title }: { title: string }) {
 export default function BdrWorkspace() {
   const { 
     user, 
-    leads, 
     resetBdrQueue,
     activeBdrTab,
     rotateLeadsData
   } = useVeltrixStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState({ totalLeadsCount: 0, savedOpportunitiesCount: 0 });
 
   useEffect(() => {
     setMounted(true);
@@ -43,6 +43,26 @@ export default function BdrWorkspace() {
     }
   }, [user, router, mounted]);
 
+  useEffect(() => {
+    if (!mounted || !user) return;
+    const fetchStats = async () => {
+      try {
+        const resLeads = await fetch(`/api/data-vault/all-leads?limit=1&bdr=${user.name}`);
+        const jsonLeads = await resLeads.json();
+        const resOpps = await fetch(`/api/data-vault/all-leads?limit=1&bdr=${user.name}&opportunities=true`);
+        const jsonOpps = await resOpps.json();
+        
+        setStats({
+          totalLeadsCount: jsonLeads.pagination?.total || 0,
+          savedOpportunitiesCount: jsonOpps.pagination?.total || 0
+        });
+      } catch (err) {
+        console.error('Failed to fetch BDR stats:', err);
+      }
+    };
+    fetchStats();
+  }, [mounted, user, activeBdrTab]);
+
   if (!mounted || !user || user.role !== 'bdr') {
     return (
       <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center text-slate-500 text-xs font-semibold">
@@ -51,8 +71,7 @@ export default function BdrWorkspace() {
     );
   }
 
-  const totalLeadsCount = leads.length;
-  const savedOpportunitiesCount = leads.filter(l => l.savedToOpportunities).length;
+  const { totalLeadsCount, savedOpportunitiesCount } = stats;
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex text-slate-800 font-sans">
