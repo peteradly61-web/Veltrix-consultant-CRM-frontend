@@ -29,6 +29,7 @@ interface LeadsExcelTableProps {
 
 export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
   const { 
+    user,
     leads, 
     updateLead,
     sendLeadEmailStandalone,
@@ -162,10 +163,16 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
     setSelectedLeadForEmail(null);
   };
 
-  // Filter & Sort leads
   const processedLeads = leads
     // Filter by mode
     .filter(lead => mode === 'leads' ? true : lead.savedToOpportunities)
+    // Filter by assigned BDR if the user is a BDR
+    .filter(lead => {
+      if (user?.role === 'bdr') {
+        return lead.assignedTo === user.name;
+      }
+      return true;
+    })
     // Filter by search query
     .filter(lead => {
       const query = searchQuery.toLowerCase();

@@ -12,6 +12,9 @@ export interface Lead {
   comment?: string;
   savedToOpportunities?: boolean;
   savedBy?: string;
+  assignedTo?: string; // BDR owner name
+  website?: string;    // Scraper source site
+  location?: string;   // Location region
 }
 
 export interface Meeting {
@@ -141,4 +144,5 @@ export interface VeltrixState {
   allocateBatch: (poolId: string, bdrId: string, leadCount: number) => void;
   updateAgentStatus: (bdrId: string, status: 'active' | 'idle' | 'away', timestampOffsetMinutes?: number) => void;
   addRealtimeLog: (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
+  addLeads: (newLeads: Lead[]) => void;
 }

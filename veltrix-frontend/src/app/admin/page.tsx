@@ -11,6 +11,7 @@ import UserManagement from './components/UserManagement';
 import AdminOpportunities from './components/AdminOpportunities';
 import AdminMeetings from './components/AdminMeetings';
 import AdminCalendar from './components/AdminCalendar';
+import AdminLeads from './components/AdminLeads';
 import { ShieldAlert, Sparkles, Terminal, Bell, Hammer } from 'lucide-react';
 
 function PlaceholderView({ title }: { title: string }) {
@@ -170,6 +171,8 @@ export default function AdminCommandCenter() {
           {activeAdminTab === 'performance' && <BDRPerformanceAnalytics />}
           
           {activeAdminTab === 'accounts' && <UserManagement />}
+          
+          {activeAdminTab === 'leads' && <AdminLeads />}
 
           {activeAdminTab === 'opportunities' && <AdminOpportunities />}
 
@@ -180,6 +183,7 @@ export default function AdminCommandCenter() {
           {activeAdminTab !== 'operations' && 
            activeAdminTab !== 'performance' && 
            activeAdminTab !== 'accounts' && 
+           activeAdminTab !== 'leads' && 
            activeAdminTab !== 'opportunities' && 
            activeAdminTab !== 'meetings' && 
            activeAdminTab !== 'calendar' && (

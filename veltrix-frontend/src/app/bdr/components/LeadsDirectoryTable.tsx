@@ -6,7 +6,7 @@ import { Lead } from '@/types';
 import { Search, Plus, ChevronLeft, ChevronRight, Filter, Settings, ShieldAlert, Circle, Check, X, User } from 'lucide-react';
 
 export default function LeadsDirectoryTable() {
-  const { leads, currentIndex } = useVeltrixStore();
+  const { user, leads, currentIndex } = useVeltrixStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
@@ -42,20 +42,27 @@ export default function LeadsDirectoryTable() {
   };
 
   // Filter leads based on query and status dropdown
-  const filteredLeads = leads.filter(lead => {
-    const matchesSearch = 
-      lead.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.industry.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredLeads = leads
+    .filter(lead => {
+      if (user?.role === 'bdr') {
+        return lead.assignedTo === user.name;
+      }
+      return true;
+    })
+    .filter(lead => {
+      const matchesSearch = 
+        lead.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.industry.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = 
-      statusFilter === 'all' || 
-      lead.status === statusFilter;
+      const matchesStatus = 
+        statusFilter === 'all' || 
+        lead.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
 
   const handleCreateLead = (e: React.FormEvent) => {
     e.preventDefault();

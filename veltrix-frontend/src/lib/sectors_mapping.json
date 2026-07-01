@@ -1,0 +1,283 @@
+{
+  "industryToSector": {
+    "grains & sweeteners": "Food & Nutrition",
+    "fruit & vegetable importers": "Food & Nutrition",
+    "dairy cooperatives": "Food & Nutrition",
+    "specialty coffee & tea": "Food & Nutrition",
+    "meat & poultry packers": "Food & Nutrition",
+    "edible oil refiners": "Food & Nutrition",
+    "nutraceutical manufacturers": "Food & Nutrition",
+    "aqua-feed producers": "Food & Nutrition",
+    "confectionery manufacturers": "Food & Nutrition",
+    "food packaging suppliers": "Food & Nutrition",
+    "dtc furniture brands": "Home & Furniture",
+    "kitchen cabinet manufacturers": "Home & Furniture",
+    "mattress manufacturers": "Home & Furniture",
+    "office furniture wholesalers": "Home & Furniture",
+    "outdoor furniture retailers": "Home & Furniture",
+    "rug & carpet importers": "Home & Furniture",
+    "smart lighting integrators": "Home & Furniture",
+    "hotel supply contractors": "Home & Furniture",
+    "interior design procurement": "Home & Furniture",
+    "diy home improvement chains": "Home & Furniture",
+    "steel & aluminum fabricators": "Industry & Manufacturing",
+    "textile & apparel manufacturers": "Industry & Manufacturing",
+    "auto parts aftermarket": "Industry & Manufacturing",
+    "construction material distributors": "Industry & Manufacturing",
+    "consumer electronics assemblers": "Industry & Manufacturing",
+    "industrial machinery dealers": "Industry & Manufacturing",
+    "mining equipment suppliers": "Industry & Manufacturing",
+    "packaging & paper mills": "Industry & Manufacturing",
+    "renewable energy equipment": "Industry & Manufacturing",
+    "shipbuilding supply chains": "Industry & Manufacturing",
+    "medical device distributors": "Technology & Health",
+    "generic pharmaceutical labs": "Technology & Health",
+    "biotech startups": "Technology & Health",
+    "dental equipment suppliers": "Technology & Health",
+    "semiconductor design firms": "Technology & Health",
+    "ev battery manufacturers": "Technology & Health",
+    "cloud infrastructure providers": "Technology & Health",
+    "telehealth hardware providers": "Technology & Health",
+    "hospital design & build": "Technology & Health",
+    "ppe importers": "Technology & Health",
+    "freight forwarders": "Trade & Services",
+    "customs brokerages": "Trade & Services",
+    "frozen seafood & aquaculture": "Agriculture & Food Processing (Agribusiness)",
+    "agrochemicals & fertilizers": "Chemical, Plastic & Rubber Manufacturing",
+    "industrial polymers & resins": "Chemical, Plastic & Rubber Manufacturing",
+    "automotive tyres & tubes": "Chemical, Plastic & Rubber Manufacturing",
+    "specialty paints & coatings": "Chemical, Plastic & Rubber Manufacturing",
+    "cosmetic ingredients & surfactants": "Chemical, Plastic & Rubber Manufacturing",
+    "plastic packaging materials": "Chemical, Plastic & Rubber Manufacturing",
+    "bioplastics & eco-polymers": "Chemical, Plastic & Rubber Manufacturing",
+    "adhesives & industrial sealants": "Chemical, Plastic & Rubber Manufacturing",
+    "inorganic industrial acids": "Chemical, Plastic & Rubber Manufacturing",
+    "synthetic rubber components": "Chemical, Plastic & Rubber Manufacturing",
+    "raw cotton & yarn mills": "Textiles, Apparel & Fashion Accessories",
+    "technical textiles & nonwovens": "Textiles, Apparel & Fashion Accessories",
+    "performance sportswear": "Textiles, Apparel & Fashion Accessories",
+    "leather goods & footwear": "Textiles, Apparel & Fashion Accessories",
+    "home textiles & linens": "Textiles, Apparel & Fashion Accessories",
+    "fast fashion denim": "Textiles, Apparel & Fashion Accessories",
+    "children's apparel": "Textiles, Apparel & Fashion Accessories",
+    "luxury silk & intimate wear": "Textiles, Apparel & Fashion Accessories",
+    "protective workwear & uniforms": "Textiles, Apparel & Fashion Accessories",
+    "copper wire & cathodes": "Metal Industries & Metallurgy",
+    "metal fasteners & hardware": "Metal Industries & Metallurgy",
+    "industrial valve castings": "Metal Industries & Metallurgy",
+    "precious metal bullion/scrap": "Metal Industries & Metallurgy",
+    "foundry castings (automotive)": "Metal Industries & Metallurgy",
+    "metal packaging & tinplate": "Metal Industries & Metallurgy",
+    "agricultural machinery/tractors": "Machinery, Mechanical Appliances & Automation",
+    "cnc machine tools & milling": "Machinery, Mechanical Appliances & Automation",
+    "pumps & liquid compressors": "Machinery, Mechanical Appliances & Automation",
+    "hvac industrial systems": "Machinery, Mechanical Appliances & Automation",
+    "textile & weaving machinery": "Machinery, Mechanical Appliances & Automation",
+    "food processing machinery": "Machinery, Mechanical Appliances & Automation",
+    "construction & earthmoving": "Machinery, Mechanical Appliances & Automation",
+    "packaging & bottling lines": "Machinery, Mechanical Appliances & Automation",
+    "industrial printing machinery": "Machinery, Mechanical Appliances & Automation",
+    "molds & dies for injection": "Machinery, Mechanical Appliances & Automation",
+    "power distribution transformers": "Electrical Machinery & Electronics",
+    "electric motors & generators": "Electrical Machinery & Electronics",
+    "smart metering & iot devices": "Electrical Machinery & Electronics",
+    "wire harnesses & cables": "Electrical Machinery & Electronics",
+    "industrial switchgear panels": "Electrical Machinery & Electronics",
+    "ophthalmic lenses & glasses": "Medical Devices, Instruments & Pharmaceuticals",
+    "veterinary medicines & vaccines": "Medical Devices, Instruments & Pharmaceuticals",
+    "ev charging stations": "Transportation Equipment & Automotive Components",
+    "commercial trailers & bodies": "Transportation Equipment & Automotive Components",
+    "railway track accessories": "Transportation Equipment & Automotive Components",
+    "bicycle & e-bike assemblies": "Transportation Equipment & Automotive Components",
+    "drones & unmanned aerial vehicles (uav)": "Transportation Equipment & Automotive Components",
+    "agricultural trailers & spreaders": "Transportation Equipment & Automotive Components",
+    "sawn timber & lumber": "Wood, Paper, Furniture & Forestry Products",
+    "plywood & engineered panels": "Wood, Paper, Furniture & Forestry Products",
+    "biomass wood pellets": "Wood, Paper, Furniture & Forestry Products",
+    "luxury hardwood flooring": "Wood, Paper, Furniture & Forestry Products",
+    "ceramic wall & floor tiles": "Non-Metallic Mineral Products & Building Materials",
+    "float & architectural glass": "Non-Metallic Mineral Products & Building Materials",
+    "natural marble & granite slabs": "Non-Metallic Mineral Products & Building Materials",
+    "sanitary ware (toilets & sinks)": "Non-Metallic Mineral Products & Building Materials",
+    "refractory bricks & linings": "Non-Metallic Mineral Products & Building Materials",
+    "abrasive wheels & sandpaper": "Non-Metallic Mineral Products & Building Materials"
+  },
+  "sectorList": [
+    {
+      "name": "Food & Nutrition",
+      "industries": [
+        "Grains & Sweeteners",
+        "Fruit & Vegetable Importers",
+        "Dairy Cooperatives",
+        "Specialty Coffee & Tea",
+        "Meat & Poultry Packers",
+        "Edible Oil Refiners",
+        "Nutraceutical Manufacturers",
+        "Aqua-feed Producers",
+        "Confectionery Manufacturers",
+        "Food Packaging Suppliers"
+      ]
+    },
+    {
+      "name": "Home & Furniture",
+      "industries": [
+        "DTC Furniture Brands",
+        "Kitchen Cabinet Manufacturers",
+        "Mattress Manufacturers",
+        "Office Furniture Wholesalers",
+        "Outdoor Furniture Retailers",
+        "Rug & Carpet Importers",
+        "Smart Lighting Integrators",
+        "Hotel Supply Contractors",
+        "Interior Design Procurement",
+        "DIY Home Improvement Chains"
+      ]
+    },
+    {
+      "name": "Industry & Manufacturing",
+      "industries": [
+        "Steel & Aluminum Fabricators",
+        "Textile & Apparel Manufacturers",
+        "Auto Parts Aftermarket",
+        "Construction Material Distributors",
+        "Consumer Electronics Assemblers",
+        "Industrial Machinery Dealers",
+        "Mining Equipment Suppliers",
+        "Packaging & Paper Mills",
+        "Renewable Energy Equipment",
+        "Shipbuilding Supply Chains"
+      ]
+    },
+    {
+      "name": "Technology & Health",
+      "industries": [
+        "Medical Device Distributors",
+        "Generic Pharmaceutical Labs",
+        "Biotech Startups",
+        "Dental Equipment Suppliers",
+        "Semiconductor Design Firms",
+        "EV Battery Manufacturers",
+        "Cloud Infrastructure Providers",
+        "Telehealth Hardware Providers",
+        "Hospital Design & Build",
+        "PPE Importers"
+      ]
+    },
+    {
+      "name": "Trade & Services",
+      "industries": [
+        "Freight Forwarders",
+        "Customs Brokerages"
+      ]
+    },
+    {
+      "name": "Agriculture & Food Processing (Agribusiness)",
+      "industries": [
+        "Frozen Seafood & Aquaculture"
+      ]
+    },
+    {
+      "name": "Chemical, Plastic & Rubber Manufacturing",
+      "industries": [
+        "Agrochemicals & Fertilizers",
+        "Industrial Polymers & Resins",
+        "Automotive Tyres & Tubes",
+        "Specialty Paints & Coatings",
+        "Cosmetic Ingredients & Surfactants",
+        "Plastic Packaging Materials",
+        "Bioplastics & Eco-Polymers",
+        "Adhesives & Industrial Sealants",
+        "Inorganic Industrial Acids",
+        "Synthetic Rubber Components"
+      ]
+    },
+    {
+      "name": "Textiles, Apparel & Fashion Accessories",
+      "industries": [
+        "Raw Cotton & Yarn Mills",
+        "Technical Textiles & Nonwovens",
+        "Performance Sportswear",
+        "Leather Goods & Footwear",
+        "Home Textiles & Linens",
+        "Fast Fashion Denim",
+        "Children's Apparel",
+        "Luxury Silk & Intimate Wear",
+        "Protective Workwear & Uniforms"
+      ]
+    },
+    {
+      "name": "Metal Industries & Metallurgy",
+      "industries": [
+        "Copper Wire & Cathodes",
+        "Metal Fasteners & Hardware",
+        "Industrial Valve Castings",
+        "Precious Metal Bullion/Scrap",
+        "Foundry Castings (Automotive)",
+        "Metal Packaging & Tinplate"
+      ]
+    },
+    {
+      "name": "Machinery, Mechanical Appliances & Automation",
+      "industries": [
+        "Agricultural Machinery/Tractors",
+        "CNC Machine Tools & Milling",
+        "Pumps & Liquid Compressors",
+        "HVAC Industrial Systems",
+        "Textile & Weaving Machinery",
+        "Food Processing Machinery",
+        "Construction & Earthmoving",
+        "Packaging & Bottling Lines",
+        "Industrial Printing Machinery",
+        "Molds & Dies for Injection"
+      ]
+    },
+    {
+      "name": "Electrical Machinery & Electronics",
+      "industries": [
+        "Power Distribution Transformers",
+        "Electric Motors & Generators",
+        "Smart Metering & IoT Devices",
+        "Wire Harnesses & Cables",
+        "Industrial Switchgear Panels"
+      ]
+    },
+    {
+      "name": "Medical Devices, Instruments & Pharmaceuticals",
+      "industries": [
+        "Ophthalmic Lenses & Glasses",
+        "Veterinary Medicines & Vaccines"
+      ]
+    },
+    {
+      "name": "Transportation Equipment & Automotive Components",
+      "industries": [
+        "EV Charging Stations",
+        "Commercial Trailers & Bodies",
+        "Railway Track Accessories",
+        "Bicycle & E-Bike Assemblies",
+        "Drones & Unmanned Aerial Vehicles (UAV)",
+        "Agricultural Trailers & Spreaders"
+      ]
+    },
+    {
+      "name": "Wood, Paper, Furniture & Forestry Products",
+      "industries": [
+        "Sawn Timber & Lumber",
+        "Plywood & Engineered Panels",
+        "Biomass Wood Pellets",
+        "Luxury Hardwood Flooring"
+      ]
+    },
+    {
+      "name": "Non-Metallic Mineral Products & Building Materials",
+      "industries": [
+        "Ceramic Wall & Floor Tiles",
+        "Float & Architectural Glass",
+        "Natural Marble & Granite Slabs",
+        "Sanitary Ware (Toilets & Sinks)",
+        "Refractory Bricks & Linings",
+        "Abrasive Wheels & Sandpaper"
+      ]
+    }
+  ]
+}

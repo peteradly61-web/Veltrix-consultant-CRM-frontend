@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export default function MeetingsTable() {
-  const { meetings, leads, addMeeting } = useVeltrixStore();
+  const { user, meetings, leads, addMeeting } = useVeltrixStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -30,15 +30,22 @@ export default function MeetingsTable() {
   });
 
   // Filter meetings
-  const filteredMeetings = meetings.filter(meet => {
-    const query = searchQuery.toLowerCase();
-    return (
-      meet.company.toLowerCase().includes(query) ||
-      meet.leadName.toLowerCase().includes(query) ||
-      meet.title.toLowerCase().includes(query) ||
-      (meet.notes && meet.notes.toLowerCase().includes(query))
-    );
-  });
+  const filteredMeetings = meetings
+    .filter(meet => {
+      if (user?.role === 'bdr') {
+        return meet.bookedBy === user.name;
+      }
+      return true;
+    })
+    .filter(meet => {
+      const query = searchQuery.toLowerCase();
+      return (
+        meet.company.toLowerCase().includes(query) ||
+        meet.leadName.toLowerCase().includes(query) ||
+        meet.title.toLowerCase().includes(query) ||
+        (meet.notes && meet.notes.toLowerCase().includes(query))
+      );
+    });
 
   // Form submit handler
   const handleSubmit = (e: React.FormEvent) => {

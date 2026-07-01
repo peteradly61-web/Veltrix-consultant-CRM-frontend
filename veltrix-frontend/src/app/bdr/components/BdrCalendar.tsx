@@ -12,7 +12,14 @@ import {
 } from 'lucide-react';
 
 export default function BdrCalendar() {
-  const { meetings } = useVeltrixStore();
+  const { user, meetings } = useVeltrixStore();
+  
+  const filteredMeetings = meetings.filter(m => {
+    if (user?.role === 'bdr') {
+      return m.bookedBy === user.name;
+    }
+    return true;
+  });
   
   // Initialize to current date (July 2026 in the demo workspace state, or local system time)
   const [currentDate, setCurrentDate] = useState(() => {
@@ -137,7 +144,7 @@ export default function BdrCalendar() {
 
                 // Construct ISO Date string (YYYY-MM-DD) to query meetings
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                const dayMeetings = meetings.filter(m => m.date === dateStr);
+                const dayMeetings = filteredMeetings.filter(m => m.date === dateStr);
                 const isToday = 
                   new Date().getDate() === dayNum && 
                   new Date().getMonth() === month && 

@@ -27,7 +27,8 @@ const MOCK_LEADS: Lead[] = [
     createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
     comment: 'Interested in logistics workflow automation.',
     savedToOpportunities: true,
-    savedBy: 'Jordan Vance'
+    savedBy: 'Jordan Vance',
+    assignedTo: 'Jordan Vance'
   },
   {
     id: 'lead-2',
@@ -42,7 +43,8 @@ const MOCK_LEADS: Lead[] = [
     createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     comment: 'Need details on CRM sync integrations.',
     savedToOpportunities: true,
-    savedBy: 'Elena Rostova'
+    savedBy: 'Elena Rostova',
+    assignedTo: 'Elena Rostova'
   },
   {
     id: 'lead-3',
@@ -56,7 +58,8 @@ const MOCK_LEADS: Lead[] = [
     status: 'new',
     createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
     comment: '',
-    savedToOpportunities: false
+    savedToOpportunities: false,
+    assignedTo: 'Alex Rivera'
   },
   {
     id: 'lead-4',
@@ -71,7 +74,8 @@ const MOCK_LEADS: Lead[] = [
     createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     comment: 'Wants to review data decay benchmarks.',
     savedToOpportunities: true,
-    savedBy: 'Alex Rivera'
+    savedBy: 'Alex Rivera',
+    assignedTo: 'Alex Rivera'
   },
   {
     id: 'lead-5',
@@ -85,7 +89,8 @@ const MOCK_LEADS: Lead[] = [
     status: 'new',
     createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     comment: '',
-    savedToOpportunities: false
+    savedToOpportunities: false,
+    assignedTo: 'Sarah Jenkins'
   }
 ];
 
@@ -829,6 +834,12 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
       set(state => ({
         realtimeLogs: [log, ...state.realtimeLogs.slice(0, 19)]
       }));
+    },
+
+    addLeads: (newLeads) => {
+      const { leads } = get();
+      set({ leads: [...leads, ...newLeads] });
+      get().addRealtimeLog(`Ingested and distributed ${newLeads.length} new leads to BDR team.`, 'success');
     }
   };
 });
