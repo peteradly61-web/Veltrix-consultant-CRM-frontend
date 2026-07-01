@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import MonitoringGrid from './components/MonitoringGrid';
+import LiveGrid from './components/LiveGrid';
 import DataRotator from './components/DataRotator';
 import BDRPerformanceAnalytics from './components/BDRPerformanceAnalytics';
 import UserManagement from './components/UserManagement';
@@ -124,6 +125,7 @@ export default function AdminCommandCenter() {
               {/* Main monitoring and rotator panel (lg:col-span-3) */}
               <div className="lg:col-span-3 space-y-8">
                 <MonitoringGrid />
+                <LiveGrid />
                 <DataRotator />
               </div>
 
