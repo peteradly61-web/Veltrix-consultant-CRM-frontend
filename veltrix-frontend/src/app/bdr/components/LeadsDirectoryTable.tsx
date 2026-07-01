@@ -70,7 +70,10 @@ export default function LeadsDirectoryTable() {
       title: newLeadForm.title || 'Decision Maker',
       industry: newLeadForm.industry || 'Industrial Operations',
       phone: newLeadForm.phone || '+1 (555) 012-3456',
-      status: 'new'
+      status: 'new',
+      createdAt: new Date().toISOString(),
+      comment: '',
+      savedToOpportunities: false
     };
 
     // Update the Zustand store's leads array directly using Zustand setState

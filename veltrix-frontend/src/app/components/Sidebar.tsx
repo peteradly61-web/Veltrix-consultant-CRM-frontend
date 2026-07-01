@@ -37,7 +37,7 @@ export default function Sidebar({ activeTab }: SidebarProps) {
   };
 
   // Define visibility for BDR
-  const bdrVisibleTabs = ['Leads', 'Opportunities', 'Emails', 'Tasks', 'Calendar'];
+  const bdrVisibleTabs = ['Leads', 'Opportunities', 'Meetings', 'Tasks', 'Calendar'];
 
   const getTabName = (name: string) => name.toLowerCase();
 

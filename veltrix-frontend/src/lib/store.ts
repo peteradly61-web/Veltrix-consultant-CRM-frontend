@@ -23,7 +23,10 @@ const MOCK_LEADS: Lead[] = [
     title: 'VP of Sales & Strategy',
     industry: 'Logistics Technology',
     phone: '+1 (555) 019-2831',
-    status: 'new'
+    status: 'new',
+    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    comment: 'Interested in logistics workflow automation.',
+    savedToOpportunities: false
   },
   {
     id: 'lead-2',
@@ -34,7 +37,10 @@ const MOCK_LEADS: Lead[] = [
     title: 'Director of Procurement',
     industry: 'Industrial Robotics',
     phone: '+1 (555) 014-8844',
-    status: 'new'
+    status: 'new',
+    createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    comment: 'Need details on CRM sync integrations.',
+    savedToOpportunities: false
   },
   {
     id: 'lead-3',
@@ -45,7 +51,10 @@ const MOCK_LEADS: Lead[] = [
     title: 'Head of Global Operations',
     industry: 'Transportation & Logistics',
     phone: '+1 (555) 012-9901',
-    status: 'new'
+    status: 'new',
+    createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
+    comment: '',
+    savedToOpportunities: false
   },
   {
     id: 'lead-4',
@@ -56,7 +65,10 @@ const MOCK_LEADS: Lead[] = [
     title: 'Chief Technology Officer',
     industry: 'Automation Systems',
     phone: '+1 (555) 017-4321',
-    status: 'new'
+    status: 'new',
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    comment: 'Wants to review data decay benchmarks.',
+    savedToOpportunities: false
   },
   {
     id: 'lead-5',
@@ -67,7 +79,10 @@ const MOCK_LEADS: Lead[] = [
     title: 'Director of Business Development',
     industry: 'Civil Engineering & Logistics',
     phone: '+1 (555) 015-7766',
-    status: 'new'
+    status: 'new',
+    createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    comment: '',
+    savedToOpportunities: false
   }
 ];
 
@@ -257,6 +272,28 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
       disqualified: 1,
       target: 50
     },
+    meetings: [
+      {
+        id: 'meet-1',
+        leadName: 'Marcus Aurelius',
+        company: 'Stoic Growth Corp',
+        title: 'Initial Discovery Call',
+        date: '2026-07-02',
+        time: '10:00',
+        notes: 'Discuss outbound pipeline automation issues.',
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: 'meet-2',
+        leadName: 'Sarah Chen',
+        company: 'NanoFlow Automation',
+        title: 'Veltrix Platform Demo',
+        date: '2026-07-03',
+        time: '14:30',
+        notes: 'Provide a walk-through of the main dashboard.',
+        createdAt: new Date().toISOString()
+      }
+    ],
 
     bdrAgents: MOCK_AGENTS(),
     dataPools: MOCK_POOLS,
@@ -510,6 +547,122 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
       });
 
       get().addRealtimeLog('BDR workspace queue reset for demonstration.', 'info');
+    },
+
+    updateLeadStatus: (leadId, status) => {
+      const { leads } = get();
+      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, status } : l);
+      const lead = leads.find(l => l.id === leadId);
+      set({ leads: updatedLeads });
+      if (lead) {
+        get().addRealtimeLog(`Updated status of ${lead.company} to ${status.toUpperCase()}.`, 'success');
+      }
+    },
+
+    updateLeadComment: (leadId, comment) => {
+      const { leads } = get();
+      const updatedLeads = leads.map(l => l.id === leadId ? { ...l, comment } : l);
+      const lead = leads.find(l => l.id === leadId);
+      set({ leads: updatedLeads });
+      if (lead) {
+        get().addRealtimeLog(`Updated comment for ${lead.company}.`, 'info');
+      }
+    },
+
+    toggleSaveLeadToOpportunities: (leadId) => {
+      const { leads } = get();
+      const lead = leads.find(l => l.id === leadId);
+      if (!lead) return;
+      const updatedLeads = leads.map(l => 
+        l.id === leadId ? { ...l, savedToOpportunities: !l.savedToOpportunities } : l
+      );
+      set({ leads: updatedLeads });
+      const isSaved = !lead.savedToOpportunities;
+      get().addRealtimeLog(
+        isSaved 
+          ? `Lead ${lead.company} saved to Opportunities.` 
+          : `Lead ${lead.company} removed from Opportunities.`,
+        isSaved ? 'success' : 'warning'
+      );
+    },
+
+    addMeeting: (meeting) => {
+      const { meetings } = get();
+      const newMeeting = {
+        ...meeting,
+        id: `meet-${Date.now()}`,
+        createdAt: new Date().toISOString()
+      };
+      set({ meetings: [newMeeting, ...meetings] });
+      get().addRealtimeLog(`Meeting booked with ${meeting.leadName} (${meeting.company}).`, 'success');
+    },
+
+    rotateLeadsData: () => {
+      const { leads } = get();
+      const savedLeads = leads.filter(l => l.savedToOpportunities);
+      const prefix = Date.now().toString().slice(-4);
+      const newMockLeads = [
+        {
+          id: `lead-new-1-${prefix}`,
+          firstName: 'John',
+          lastName: 'Doe',
+          email: `johndoe@tradecorp-${prefix}.com`,
+          company: `Global Logistics ${prefix}`,
+          title: 'VP of Procurement',
+          industry: 'Logistics Technology',
+          phone: '+1 (555) 888-0011',
+          status: 'new' as const,
+          createdAt: new Date().toISOString(),
+          comment: '',
+          savedToOpportunities: false
+        },
+        {
+          id: `lead-new-2-${prefix}`,
+          firstName: 'Amelie',
+          lastName: 'Laurent',
+          email: `amelie@heavymachinery-${prefix}.net`,
+          company: `Laurent Heavy Industries`,
+          title: 'Chief Operations Officer',
+          industry: 'Heavy Machinery',
+          phone: '+1 (555) 777-2233',
+          status: 'new' as const,
+          createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+          comment: '',
+          savedToOpportunities: false
+        },
+        {
+          id: `lead-new-3-${prefix}`,
+          firstName: 'Robert',
+          lastName: 'Kowalski',
+          email: `rkowalski@steelcraft-${prefix}.org`,
+          company: `SteelCraft Automation`,
+          title: 'Lead Plant Engineer',
+          industry: 'Automation Systems',
+          phone: '+1 (555) 444-9988',
+          status: 'new' as const,
+          createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          comment: '',
+          savedToOpportunities: false
+        },
+        {
+          id: `lead-new-4-${prefix}`,
+          firstName: 'Sophia',
+          lastName: 'Martinez',
+          email: `smartinez@inboundflow-${prefix}.io`,
+          company: `InboundFlow Logistics`,
+          title: 'Director of Operations',
+          industry: 'Transportation & Logistics',
+          phone: '+1 (555) 333-6655',
+          status: 'new' as const,
+          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          comment: '',
+          savedToOpportunities: false
+        }
+      ];
+
+      const combinedLeads = [...savedLeads, ...newMockLeads];
+      set({ leads: combinedLeads, currentIndex: 0 });
+      get().addRealtimeLog(`Lead rotation sync complete. Ingested ${newMockLeads.length} new leads. Preserved ${savedLeads.length} saved cases.`, 'success');
     },
 
     allocateBatch: (poolId: string, bdrId: string, leadCount: number) => {

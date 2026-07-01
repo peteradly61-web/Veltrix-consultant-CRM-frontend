@@ -4,18 +4,16 @@ import { useVeltrixStore } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import LeadCard from './components/LeadCard';
-import EmailEditor from './components/EmailEditor';
-import ProgressTracker from './components/ProgressTracker';
-import LeadsDirectoryTable from './components/LeadsDirectoryTable';
-import { RefreshCw, Layers, Hammer } from 'lucide-react';
+import LeadsExcelTable from './components/LeadsExcelTable';
+import MeetingsTable from './components/MeetingsTable';
+import { RefreshCw, LayoutGrid, Layers, Hammer, Activity } from 'lucide-react';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
-    <div className="flex flex-col items-center justify-center h-96 text-slate-400">
-      <Hammer className="w-12 h-12 mb-4 opacity-50" />
-      <h2 className="text-xl font-bold text-slate-500 mb-2">{title} Module</h2>
-      <p className="text-sm">This section is currently under development.</p>
+    <div className="crm-panel bg-white shadow-sm border border-gray-300 rounded p-12 flex flex-col items-center justify-center min-h-[350px] text-slate-400">
+      <Hammer className="w-12 h-12 mb-4 text-blue-600 opacity-60 animate-bounce" />
+      <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">{title} Dashboard</h2>
+      <p className="text-xs text-slate-500 font-medium">This module is currently synced and waiting offline activity.</p>
     </div>
   );
 }
@@ -24,10 +22,9 @@ export default function BdrWorkspace() {
   const { 
     user, 
     leads, 
-    currentIndex, 
     resetBdrQueue,
     activeBdrTab,
-    setActiveBdrTab
+    rotateLeadsData
   } = useVeltrixStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -47,17 +44,17 @@ export default function BdrWorkspace() {
 
   if (!mounted || !user || user.role !== 'bdr') {
     return (
-      <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center text-slate-500 text-xs">
+      <div className="min-h-screen bg-[#f3f4f6] flex items-center justify-center text-slate-500 text-xs font-semibold">
         Verifying BDR Session Auth...
       </div>
     );
   }
 
-  const currentLead = leads[currentIndex];
-  const totalLeads = leads.length;
+  const totalLeadsCount = leads.length;
+  const savedOpportunitiesCount = leads.filter(l => l.savedToOpportunities).length;
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex text-slate-800">
+    <div className="min-h-screen bg-[#f3f4f6] flex text-slate-800 font-sans">
       
       {/* Persistent Left Navigation Sidebar */}
       <Sidebar activeTab="workspace" />
@@ -66,84 +63,59 @@ export default function BdrWorkspace() {
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
         
         {/* Top Header bar */}
-        <header className="h-14 border-b border-gray-300 bg-white flex items-center justify-between px-8 shrink-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold text-slate-800">Lead Queue Workspace</h1>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-semibold uppercase">
-              Outbound BDR
+        <header className="h-14 border-b border-gray-300 bg-white flex items-center justify-between px-8 shrink-0 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-sm font-extrabold text-slate-900 tracking-tight">BDR Work Desk</h1>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-extrabold uppercase tracking-wide">
+              Outbound Representative
             </span>
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Queue info badge */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-              <Layers className="w-4 h-4 text-blue-500" />
-              <span>Queue status:</span>
-              <span className="font-bold text-slate-700 font-mono">
-                {currentIndex >= totalLeads ? totalLeads : currentIndex + 1} / {totalLeads}
-              </span>
+            {/* Quick stats info badge */}
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1 text-slate-500 font-semibold">
+                <Layers className="w-3.5 h-3.5 text-blue-600" />
+                <span>Leads Pool:</span>
+                <span className="font-bold text-slate-800">{totalLeadsCount}</span>
+              </div>
+              <div className="w-px h-3 bg-gray-300" />
+              <div className="flex items-center gap-1 text-slate-500 font-semibold">
+                <Activity className="w-3.5 h-3.5 text-amber-500" />
+                <span>Opportunities:</span>
+                <span className="font-bold text-slate-800">{savedOpportunitiesCount}</span>
+              </div>
             </div>
 
             {/* Reset Button for testing */}
             <button
               onClick={resetBdrQueue}
-              className="crm-btn-secondary py-1 px-2.5 flex items-center gap-1 text-[11px]"
-              title="Reset Queue for demo"
+              className="crm-btn-secondary py-1.5 px-3 flex items-center gap-1 text-[11px] font-bold border-gray-350 hover:bg-slate-50"
+              title="Reset workspace leads to default mock data"
             >
-              <RefreshCw className="w-3 h-3" />
-              <span>Reset Queue</span>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset Data</span>
             </button>
           </div>
         </header>
 
-        {/* Tab Sub-Header Navigation (Only for Leads) */}
-        {(activeBdrTab === 'queue' || activeBdrTab === 'directory') && (
-          <div className="bg-white border-b border-gray-300 px-8 py-2.5 flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => setActiveBdrTab('queue')}
-              className={`px-3 py-1.5 rounded text-xs font-bold border transition-all ${
-                activeBdrTab === 'queue'
-                  ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-600'
-              }`}
-            >
-              Active Outbox Queue
-            </button>
-            <button
-              onClick={() => setActiveBdrTab('directory')}
-              className={`px-3 py-1.5 rounded text-xs font-bold border transition-all ${
-                activeBdrTab === 'directory'
-                  ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                  : 'bg-white hover:bg-gray-50 border-gray-350 text-slate-600'
-              }`}
-            >
-              Leads Directory Table
-            </button>
-          </div>
-        )}
-
         {/* Content Frame */}
-        <main className="flex-1 p-8 max-w-6xl w-full mx-auto">
+        <main className="flex-1 p-8 max-w-6xl w-full mx-auto space-y-6">
+          
+          {/* Main workspace tab router */}
           {activeBdrTab === 'queue' && (
-            <div className="grid lg:grid-cols-5 gap-8 items-start">
-              
-              {/* Left Workspace Widgets (lg:col-span-2) */}
-              <div className="lg:col-span-2 flex flex-col gap-6">
-                <LeadCard lead={currentLead} />
-                <ProgressTracker />
-              </div>
+            <LeadsExcelTable mode="leads" />
+          )}
 
-              {/* Right Editor Widget (lg:col-span-3) */}
-              <div className="lg:col-span-3">
-                <EmailEditor lead={currentLead} />
-              </div>
+          {activeBdrTab === 'opportunities' && (
+            <LeadsExcelTable mode="opportunities" />
+          )}
 
-            </div>
+          {activeBdrTab === 'meetings' && (
+            <MeetingsTable />
           )}
           
-          {activeBdrTab === 'directory' && <LeadsDirectoryTable />}
-          
-          {activeBdrTab !== 'queue' && activeBdrTab !== 'directory' && (
+          {activeBdrTab !== 'queue' && activeBdrTab !== 'opportunities' && activeBdrTab !== 'meetings' && (
             <PlaceholderView title={activeBdrTab.charAt(0).toUpperCase() + activeBdrTab.slice(1)} />
           )}
         </main>

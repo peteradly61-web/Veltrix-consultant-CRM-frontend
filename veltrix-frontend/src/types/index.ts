@@ -8,6 +8,20 @@ export interface Lead {
   industry: string;
   phone?: string;
   status: 'new' | 'contacted' | 'skipped' | 'disqualified';
+  createdAt: string; // ISO Timestamp
+  comment?: string;
+  savedToOpportunities?: boolean;
+}
+
+export interface Meeting {
+  id: string;
+  leadName: string;
+  company: string;
+  title: string;      // Meeting Title
+  date: string;       // YYYY-MM-DD
+  time: string;       // HH:MM
+  notes?: string;
+  createdAt: string;  // ISO Timestamp
 }
 
 export interface EmailTemplate {
@@ -82,6 +96,7 @@ export interface VeltrixState {
   emailSubject: string;
   emailBody: string;
   dailyProgress: DailyProgress;
+  meetings: Meeting[];
 
   // Admin Command Center
   bdrAgents: BDRSession[];
@@ -110,6 +125,13 @@ export interface VeltrixState {
   skipLead: (leadId: string) => void;
   disqualifyLead: (leadId: string) => void;
   resetBdrQueue: () => void;
+  
+  // Extended BDR Actions
+  updateLeadStatus: (leadId: string, status: Lead['status']) => void;
+  updateLeadComment: (leadId: string, comment: string) => void;
+  toggleSaveLeadToOpportunities: (leadId: string) => void;
+  addMeeting: (meeting: Omit<Meeting, 'id' | 'createdAt'>) => void;
+  rotateLeadsData: () => void;
 
   // Admin Actions
   allocateBatch: (poolId: string, bdrId: string, leadCount: number) => void;
