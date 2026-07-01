@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { useVeltrixStore } from '@/lib/store';
 
 export interface DatabaseLead {
   id: string;
@@ -16,21 +16,16 @@ export interface DatabaseLead {
 export function useLiveLeads() {
   const [unassignedLeads, setUnassignedLeads] = useState<DatabaseLead[]>([]);
   const [isLiveStreaming, setIsLiveStreaming] = useState(false);
+  const addRealtimeLog = useVeltrixStore((state) => state.addRealtimeLog);
 
   useEffect(() => {
-    // 1. Hydration Fetch: Get all leads where status === 'unassigned', sorted chronologically with newest at the top
+    // 1. Initial hydration fetch from local API endpoint
     async function fetchUnassignedLeads() {
       try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .eq('status', 'unassigned')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('[useLiveLeads] Error fetching unassigned leads:', error);
-        } else if (data) {
-          setUnassignedLeads(data);
+        const res = await fetch('/api/leads/list');
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUnassignedLeads(json.data);
         }
       } catch (err) {
         console.error('[useLiveLeads] Exception fetching unassigned leads:', err);
@@ -39,34 +34,56 @@ export function useLiveLeads() {
 
     fetchUnassignedLeads();
 
-    // 2. WebSocket Channel Provisioning: subscribe to PostgreSQL write-ahead log for public.leads
-    const channel = supabase
-      .channel('live-scraper-stream')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'leads',
-          filter: 'status=eq.unassigned',
-        },
-        (payload) => {
-          const newLead = payload.new as DatabaseLead;
-          
-          // 3. State Appending Logic: Prepend the new record to the top of unassignedLeads
-          setUnassignedLeads((prev) => [newLead, ...prev]);
+    // 2. Local Server-Sent Events (SSE) stream client subscription
+    let eventSource: EventSource | null = null;
+    
+    try {
+      eventSource = new EventSource('/api/leads/stream');
+      
+      eventSource.onmessage = (event) => {
+        try {
+          if (event.data) {
+            const newLead = JSON.parse(event.data) as DatabaseLead;
+            
+            // 3. State Appending Logic: Prepend the new record
+            let isNew = false;
+            setUnassignedLeads((prev) => {
+              // Deduplicate in state
+              if (prev.some(lead => lead.contact_email.toLowerCase() === newLead.contact_email.toLowerCase())) {
+                return prev;
+              }
+              isNew = true;
+              return [newLead, ...prev];
+            });
 
-          // 4. Visual Event Signaling: Set flag to true to start flashing indicators
-          setIsLiveStreaming(true);
+            // 4. Visual Event Signaling & Console Ingestion Log
+            if (isNew) {
+              setIsLiveStreaming(true);
+              addRealtimeLog(
+                `[Ingestion Stream] Real-time lead captured: ${newLead.company_name} (${newLead.contact_email})`,
+                'success'
+              );
+            }
+          }
+        } catch (e) {
+          console.error('[useLiveLeads] SSE parsing error:', e);
         }
-      )
-      .subscribe();
+      };
 
-    // 5. Cleanup: Terminate and drop WebSocket channel connection if the component unmounts
+      eventSource.onerror = (err) => {
+        console.warn('[useLiveLeads] SSE stream disconnected or encountered an error. Attempting reconnect...', err);
+      };
+    } catch (sseErr) {
+      console.error('[useLiveLeads] Exception setting up SSE:', sseErr);
+    }
+
+    // 5. Cleanup: Terminate SSE client connection if component unmounts
     return () => {
-      supabase.removeChannel(channel);
+      if (eventSource) {
+        eventSource.close();
+      }
     };
-  }, []);
+  }, [addRealtimeLog]);
 
   // Handle the automatic 1000ms delay to reset the flash status
   useEffect(() => {

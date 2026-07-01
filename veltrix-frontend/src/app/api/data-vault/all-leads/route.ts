@@ -237,6 +237,18 @@ export async function GET(request: Request) {
     // Get all scraper email addresses as a Set for fast lookup
     const scraperEmails = new Set(cache.leadsList.map(l => l.email.toLowerCase()));
 
+    // Load locally ingested leads to merge
+    const INGESTED_LEADS_FILE = path.resolve(process.cwd(), 'data/ingested_leads.json');
+    let ingestedLeads: any[] = [];
+    if (fs.existsSync(INGESTED_LEADS_FILE)) {
+      try {
+        const content = fs.readFileSync(INGESTED_LEADS_FILE, 'utf-8');
+        ingestedLeads = JSON.parse(content || '[]');
+      } catch (err) {
+        console.error('Error reading ingested leads in all-leads:', err);
+      }
+    }
+
     // 4. Merge and Filter leads
     let filtered = cache.leadsList.map((lead, index) => {
       const emailLower = lead.email.toLowerCase();
@@ -259,6 +271,30 @@ export async function GET(request: Request) {
         createdAt: assignment?.createdAt || new Date(Date.now() - (index * 60 * 1000)).toISOString(),
         savedToOpportunities: assignment?.savedToOpportunities || false
       };
+    });
+
+    // Merge ingested leads if they are not already in scraperEmails
+    ingestedLeads.forEach((lead) => {
+      const emailLower = lead.contact_email.toLowerCase();
+      if (!scraperEmails.has(emailLower)) {
+        const assignment = assignments[emailLower];
+        filtered.push({
+          id: lead.id,
+          company: lead.company_name || 'Unknown Company',
+          email: lead.contact_email,
+          website: '',
+          location: 'Unknown',
+          industry: lead.industry,
+          sectorId: 'ingested',
+          sectorName: lead.data_pool_name,
+          assignedTo: assignment?.assignedTo || undefined,
+          status: assignment?.status || lead.status || 'new',
+          comment: assignment?.comment || `Sourced from live stream: ${lead.data_pool_name}`,
+          createdAt: assignment?.createdAt || lead.created_at,
+          savedToOpportunities: assignment?.savedToOpportunities || false
+        });
+        scraperEmails.add(emailLower); // Prevent duplicate addition
+      }
     });
 
     // Add manually created assignments (not in scraper list)
