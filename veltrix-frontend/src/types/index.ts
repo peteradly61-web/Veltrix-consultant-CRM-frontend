@@ -114,8 +114,10 @@ export interface VeltrixState {
   // Tab Navigation State
   activeBdrTab: string;
   activeAdminTab: string;
+  sidebarOpen: boolean;
   setActiveBdrTab: (tab: string) => void;
   setActiveAdminTab: (tab: string) => void;
+  setSidebarOpen: (open: boolean) => void;
 
   // Auth Actions
   signIn: (username: string, password: string) => boolean;

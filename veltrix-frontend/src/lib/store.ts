@@ -327,8 +327,10 @@ export const useVeltrixStore = create<VeltrixState>((set, get) => {
 
     activeBdrTab: 'queue',
     activeAdminTab: 'operations',
-    setActiveBdrTab: (tab) => set({ activeBdrTab: tab }),
-    setActiveAdminTab: (tab) => set({ activeAdminTab: tab }),
+    sidebarOpen: false,
+    setActiveBdrTab: (tab) => set({ activeBdrTab: tab, sidebarOpen: false }),
+    setActiveAdminTab: (tab) => set({ activeAdminTab: tab, sidebarOpen: false }),
+    setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
     // Auth Actions
     signIn: (username: string, password: string) => {

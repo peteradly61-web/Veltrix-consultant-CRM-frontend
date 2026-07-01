@@ -324,9 +324,7 @@ export default function LeadsDirectoryTable() {
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Create Lead Modal Overlay */}
+      </div>      {/* Create Lead Modal Overlay */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white border border-gray-300 rounded shadow-xl max-w-md w-full overflow-hidden">
@@ -335,7 +333,7 @@ export default function LeadsDirectoryTable() {
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Create Lead</h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+                className="p-1 rounded text-slate-400 hover:text-slate-650 hover:bg-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -343,7 +341,7 @@ export default function LeadsDirectoryTable() {
 
             {/* Form */}
             <form onSubmit={handleCreateLead} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">First Name</label>
                   <input
@@ -388,7 +386,7 @@ export default function LeadsDirectoryTable() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Job Title</label>
                   <input

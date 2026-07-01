@@ -7,7 +7,7 @@ import Sidebar from '../components/Sidebar';
 import LeadsExcelTable from './components/LeadsExcelTable';
 import MeetingsTable from './components/MeetingsTable';
 import BdrCalendar from './components/BdrCalendar';
-import { RefreshCw, LayoutGrid, Layers, Hammer, Activity } from 'lucide-react';
+import { RefreshCw, LayoutGrid, Layers, Hammer, Activity, Menu } from 'lucide-react';
 
 function PlaceholderView({ title }: { title: string }) {
   return (
@@ -24,7 +24,8 @@ export default function BdrWorkspace() {
     user, 
     resetBdrQueue,
     activeBdrTab,
-    rotateLeadsData
+    rotateLeadsData,
+    setSidebarOpen
   } = useVeltrixStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -74,7 +75,7 @@ export default function BdrWorkspace() {
   const { totalLeadsCount, savedOpportunitiesCount } = stats;
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6] flex text-slate-800 font-sans">
+    <div className="min-h-screen bg-[#f3f4f6] flex text-slate-800 font-sans overflow-x-hidden">
       
       {/* Persistent Left Navigation Sidebar */}
       <Sidebar activeTab="workspace" />
@@ -83,26 +84,37 @@ export default function BdrWorkspace() {
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
         
         {/* Top Header bar */}
-        <header className="h-14 border-b border-gray-300 bg-white flex items-center justify-between px-8 shrink-0 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-sm font-extrabold text-slate-900 tracking-tight">BDR Work Desk</h1>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-extrabold uppercase tracking-wide">
-              Outbound Representative
-            </span>
+        <header className="h-14 border-b border-gray-300 bg-white flex items-center justify-between px-4 md:px-8 shrink-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            {/* Hamburger menu for mobile */}
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 -ml-1 rounded md:hidden text-slate-600 hover:bg-slate-100 transition-colors mr-1"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xs md:text-sm font-extrabold text-slate-900 tracking-tight">BDR Work Desk</h1>
+              <span className="hidden sm:inline-block text-[9px] px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-extrabold uppercase tracking-wide">
+                BDR Rep
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             {/* Quick stats info badge */}
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex items-center gap-2 md:gap-3 text-[10px] md:text-xs">
               <div className="flex items-center gap-1 text-slate-500 font-semibold">
                 <Layers className="w-3.5 h-3.5 text-blue-600" />
-                <span>Leads Pool:</span>
+                <span className="hidden sm:inline">Leads Pool:</span>
+                <span className="inline sm:hidden">Leads:</span>
                 <span className="font-bold text-slate-800">{totalLeadsCount}</span>
               </div>
               <div className="w-px h-3 bg-gray-300" />
               <div className="flex items-center gap-1 text-slate-500 font-semibold">
                 <Activity className="w-3.5 h-3.5 text-amber-500" />
-                <span>Opportunities:</span>
+                <span className="hidden sm:inline">Opportunities:</span>
+                <span className="inline sm:hidden">Opps:</span>
                 <span className="font-bold text-slate-800">{savedOpportunitiesCount}</span>
               </div>
             </div>
@@ -110,17 +122,17 @@ export default function BdrWorkspace() {
             {/* Reset Button for testing */}
             <button
               onClick={resetBdrQueue}
-              className="crm-btn-secondary py-1.5 px-3 flex items-center gap-1 text-[11px] font-bold border-gray-350 hover:bg-slate-50"
+              className="crm-btn-secondary py-1.5 px-2 md:px-3 flex items-center gap-1 text-[11px] font-bold border-gray-350 hover:bg-slate-50"
               title="Reset workspace leads to default mock data"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset Data</span>
+              <span className="hidden sm:inline">Reset Data</span>
             </button>
           </div>
         </header>
 
         {/* Content Frame */}
-        <main className="flex-1 p-8 max-w-6xl w-full mx-auto space-y-6">
+        <main className="flex-1 p-4 md:p-8 max-w-6xl w-full mx-auto space-y-6">
           
           {/* Main workspace tab router */}
           {activeBdrTab === 'queue' && (

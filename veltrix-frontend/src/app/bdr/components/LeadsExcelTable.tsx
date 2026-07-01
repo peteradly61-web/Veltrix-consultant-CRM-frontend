@@ -568,12 +568,10 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
             )}
           </tbody>
         </table>
-      </div>
-
-      {/* Pagination footer */}
+      </div>      {/* Pagination footer */}
       {totalPages > 1 && (
-        <div className="border-t border-gray-200 px-6 py-4 bg-slate-50/50 flex items-center justify-between">
-          <div className="text-xs text-slate-500 font-semibold">
+        <div className="border-t border-gray-200 px-6 py-4 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-slate-500 font-semibold text-center sm:text-left">
             Showing <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, (page - 1) * limit + 1)}</span> to{' '}
             <span className="font-extrabold text-slate-800">{Math.min(totalLeadsCount, page * limit)}</span> of{' '}
             <span className="font-extrabold text-slate-800">{totalLeadsCount}</span> leads
@@ -582,7 +580,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-655 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Previous
             </button>
@@ -592,7 +590,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-650 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-3 py-1.5 border border-gray-300 rounded text-[11px] font-bold text-slate-655 hover:bg-white bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Next
             </button>
@@ -624,7 +622,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
             {/* Modal Form */}
             <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">First Name</label>
                   <input
@@ -647,7 +645,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Company</label>
                   <input
@@ -670,7 +668,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Email Address</label>
                   <input
@@ -692,7 +690,7 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-500 uppercase">Industry</label>
                   <input
@@ -727,7 +725,6 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                   value={editForm.comment}
                   onChange={(e) => setEditForm({ ...editForm, comment: e.target.value })}
                   rows={4}
-                  autoFocus
                   className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 text-slate-700 bg-white font-medium leading-relaxed"
                   placeholder="Log details of the client conversation..."
                 />
@@ -750,6 +747,103 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-sm transition-colors"
                 >
                   Save Details
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Book Meeting Modal */}
+      {isMeetingModalOpen && selectedLeadForMeeting && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-gray-300 rounded shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="bg-slate-50 border-b border-gray-300 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-slate-800">
+                <CalendarPlus className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-extrabold uppercase tracking-wide">Book Meeting</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setIsMeetingModalOpen(false);
+                  setSelectedLeadForMeeting(null);
+                }}
+                className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleBookMeetingSubmit} className="p-6 space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-850">
+                <span className="font-extrabold">Client:</span> {selectedLeadForMeeting.firstName} {selectedLeadForMeeting.lastName} ({selectedLeadForMeeting.company})
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Meeting Title</label>
+                <input
+                  required
+                  type="text"
+                  value={meetingForm.title}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 text-slate-700 bg-white font-semibold"
+                  placeholder="e.g. Discovery Call"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Date</label>
+                  <input
+                    required
+                    type="date"
+                    value={meetingForm.date}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, date: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 text-slate-700 bg-white font-semibold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Time</label>
+                  <input
+                    required
+                    type="time"
+                    value={meetingForm.time}
+                    onChange={(e) => setMeetingForm({ ...meetingForm, time: e.target.value })}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 text-slate-700 bg-white font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Notes</label>
+                <textarea
+                  value={meetingForm.notes}
+                  onChange={(e) => setMeetingForm({ ...meetingForm, notes: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-blue-500 text-slate-700 bg-white font-medium"
+                  placeholder="Notes about the meeting..."
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-150">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMeetingModalOpen(false);
+                    setSelectedLeadForMeeting(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded text-xs font-bold text-slate-650 hover:bg-slate-50 bg-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-sm transition-colors"
+                >
+                  Book Meeting
                 </button>
               </div>
             </form>
