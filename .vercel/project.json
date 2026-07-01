@@ -1,9 +1,0 @@
-{
-  "projectId": "prj_V0KiRIKC7Eb62IwAt7nHgLyzIgiR",
-  "orgId": "team_wFF2cvZvanPoPx6mIj65v2C7",
-  "projectName": "veltrix-consultant-crm-frontend",
-  "settings": {
-    "framework": "nextjs",
-    "rootDirectory": "veltrix-frontend"
-  }
-}

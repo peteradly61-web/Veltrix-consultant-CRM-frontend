@@ -4,3 +4,4 @@ veltrix-frontend/.env.local
 .env
 .DS_Store
 Thumbs.db
+.vercel
