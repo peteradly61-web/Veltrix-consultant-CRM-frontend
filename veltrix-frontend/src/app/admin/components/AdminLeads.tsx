@@ -18,7 +18,9 @@ import {
   Calendar,
   Layers,
   HelpCircle,
-  X
+  X,
+  Database,
+  Loader2
 } from 'lucide-react';
 import sectorsMappingData from '@/lib/sectors_mapping.json';
 
@@ -72,6 +74,19 @@ interface ParsedLead {
   industry: string;
 }
 
+interface DataVaultFile {
+  fileName: string;
+  industryName: string;
+  sizeBytes: number;
+  leadCount: number;
+}
+
+interface DataVaultSector {
+  sectorId: string;
+  sectorName: string;
+  files: DataVaultFile[];
+}
+
 export default function AdminLeads() {
   const { leads, bdrAgents, addLeads } = useVeltrixStore();
   
@@ -79,6 +94,16 @@ export default function AdminLeads() {
   const [searchQuery, setSearchQuery] = useState('');
   const [bdrFilter, setBdrFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Tab states for Ingestion desk
+  const [ingestTab, setIngestTab] = useState<'vault' | 'manual'>('vault');
+  
+  // Data Vault states
+  const [sectors, setSectors] = useState<DataVaultSector[]>([]);
+  const [loadingSectors, setLoadingSectors] = useState(false);
+  const [selectedSectorId, setSelectedSectorId] = useState('');
+  const [loadingLeads, setLoadingLeads] = useState(false);
+  const [activeFile, setActiveFile] = useState<{ sectorName: string; fileName: string } | null>(null);
   
   // CSV Upload States
   const [dragActive, setDragActive] = useState(false);
@@ -95,6 +120,28 @@ export default function AdminLeads() {
   const [allocations, setAllocations] = useState<Record<string, number>>({});
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch data vault sectors structure on mount
+  React.useEffect(() => {
+    const fetchSectors = async () => {
+      setLoadingSectors(true);
+      try {
+        const res = await fetch('/api/data-vault/sectors');
+        const json = await res.json();
+        if (json.success) {
+          setSectors(json.data);
+          if (json.data.length > 0) {
+            setSelectedSectorId(json.data[0].sectorId);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch data vault structure:', err);
+      } finally {
+        setLoadingSectors(false);
+      }
+    };
+    fetchSectors();
+  }, []);
 
   // Filter master leads list
   const filteredMasterLeads = leads
@@ -298,10 +345,33 @@ export default function AdminLeads() {
     setAllocations({});
     setUploadSuccess(null);
     setUploadError(null);
+    setActiveFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
+
+  // Fetch leads from Data Vault CSV file
+  const handleLoadLeadsFromFile = async (sectorId: string, sectorName: string, fileName: string) => {
+    setLoadingLeads(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+    try {
+      const res = await fetch(`/api/data-vault/leads?sector=${sectorId}&file=${fileName}`);
+      const json = await res.json();
+      if (json.success) {
+        processIngestedLeads(json.data);
+        setActiveFile({ sectorName, fileName });
+      } else {
+        setUploadError(json.error || 'Failed to load leads from file');
+      }
+    } catch (err: any) {
+      setUploadError(err.message || 'Error occurred while loading leads');
+    } finally {
+      setLoadingLeads(false);
+    }
+  };
+
 
   // Sum of currently allocated leads in planner
   const totalAllocated = Object.values(allocations).reduce((sum, val) => sum + val, 0);
@@ -383,8 +453,18 @@ export default function AdminLeads() {
         <div className="lg:col-span-1 bg-white border border-gray-300 rounded shadow-sm flex flex-col overflow-hidden">
           <div className="border-b border-gray-300 px-6 py-4 bg-slate-50/50 flex items-center justify-between">
             <h2 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Upload className="w-4 h-4 text-blue-600" />
-              <span>CSV Ingestion Control</span>
+              {ingestTab === 'vault' ? (
+                <Database className="w-4 h-4 text-blue-600" />
+              ) : (
+                <Upload className="w-4 h-4 text-blue-600" />
+              )}
+              <span>
+                {rawParsedLeads.length > 0
+                  ? 'Leads Ingestion Workspace'
+                  : ingestTab === 'vault'
+                  ? 'Data Vault Explorer'
+                  : 'CSV Ingestion Control'}
+              </span>
             </h2>
             {rawParsedLeads.length > 0 && (
               <button 
@@ -398,37 +478,166 @@ export default function AdminLeads() {
           
           <div className="p-6 flex-1 flex flex-col justify-center space-y-4">
             {rawParsedLeads.length === 0 ? (
-              <div 
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-lg p-8 text-center flex flex-col items-center justify-center cursor-pointer transition-all ${
-                  dragActive ? 'border-blue-500 bg-blue-50/20' : 'border-gray-300 hover:border-blue-400 hover:bg-slate-50/50'
-                }`}
-              >
-                <input 
-                  ref={fileInputRef}
-                  type="file" 
-                  accept=".csv" 
-                  onChange={handleFileChange}
-                  className="hidden" 
-                />
-                <FileText className="w-10 h-10 text-slate-400 mb-2.5 opacity-80" />
-                <p className="text-xs font-extrabold text-slate-700">Drag & Drop Scraper CSV</p>
-                <p className="text-[10px] text-slate-500 font-medium mt-1">or click to browse local filesystem</p>
-                <div className="mt-4 px-2.5 py-1 rounded bg-slate-100 border text-[9px] font-mono text-slate-500">
-                  Required columns: Company_Name, Contact_Email
+              <div className="space-y-4 flex-1 flex flex-col">
+                {/* Tabs bar */}
+                <div className="flex border border-gray-305 rounded overflow-hidden text-xs shrink-0">
+                  <button
+                    onClick={() => {
+                      setIngestTab('vault');
+                      setUploadError(null);
+                    }}
+                    className={`flex-1 py-2 font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      ingestTab === 'vault'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-r border-gray-300'
+                    }`}
+                  >
+                    <Database className="w-3.5 h-3.5" />
+                    Data Vault
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIngestTab('manual');
+                      setUploadError(null);
+                    }}
+                    className={`flex-1 py-2 font-bold flex items-center justify-center gap-1.5 transition-all ${
+                      ingestTab === 'manual'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-655'
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Manual Upload
+                  </button>
                 </div>
+
+                {/* Tab Content */}
+                {ingestTab === 'manual' ? (
+                  <div 
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center flex flex-col items-center justify-center cursor-pointer transition-all flex-1 ${
+                      dragActive ? 'border-blue-500 bg-blue-50/20' : 'border-gray-300 hover:border-blue-400 hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <input 
+                      ref={fileInputRef}
+                      type="file" 
+                      accept=".csv" 
+                      onChange={handleFileChange}
+                      className="hidden" 
+                    />
+                    <FileText className="w-10 h-10 text-slate-400 mb-2.5 opacity-80" />
+                    <p className="text-xs font-extrabold text-slate-700">Drag & Drop Scraper CSV</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-1">or click to browse local filesystem</p>
+                    <div className="mt-4 px-2.5 py-1 rounded bg-slate-100 border text-[9px] font-mono text-slate-500">
+                      Required columns: Company_Name, Contact_Email
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 flex-1 flex flex-col justify-start">
+                    {/* Sector Selector */}
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase text-slate-450 mb-1">
+                        Select Scraper Sector Classification
+                      </label>
+                      {loadingSectors ? (
+                        <div className="h-9 w-full bg-slate-100 animate-pulse rounded border border-gray-200" />
+                      ) : (
+                        <select
+                          value={selectedSectorId}
+                          onChange={(e) => setSelectedSectorId(e.target.value)}
+                          className="w-full text-xs font-semibold px-2.5 py-2 rounded border border-gray-300 bg-white text-slate-750 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                        >
+                          {sectors.length === 0 ? (
+                            <option value="">No sectors found in vault</option>
+                          ) : (
+                            sectors.map((sec) => (
+                              <option key={sec.sectorId} value={sec.sectorId}>
+                                {sec.sectorName} ({sec.files.length} Industries)
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      )}
+                    </div>
+
+                    {/* Files list for selected sector */}
+                    <div className="flex-1 flex flex-col min-h-[220px]">
+                      <span className="block text-[10px] font-bold uppercase text-slate-450 mb-1.5">
+                        Available Industry Scrapes
+                      </span>
+                      
+                      {loadingSectors ? (
+                        <div className="flex-1 flex items-center justify-center text-slate-400 text-xs py-10">
+                          <Loader2 className="w-5 h-5 animate-spin mr-1.5 text-blue-500" />
+                          Scanning local Data Vault...
+                        </div>
+                      ) : sectors.length === 0 ? (
+                        <div className="flex-1 border rounded-lg border-gray-200 bg-slate-50 flex items-center justify-center p-6 text-center text-xs text-slate-400">
+                          Data Vault is empty or path is incorrect. Please verify scraper configurations.
+                        </div>
+                      ) : (
+                        <div className="flex-1 border border-gray-300 rounded bg-slate-50/50 p-2 overflow-y-auto max-h-[280px] space-y-1.5">
+                          {(() => {
+                            const currentSector = sectors.find(s => s.sectorId === selectedSectorId);
+                            if (!currentSector || currentSector.files.length === 0) {
+                              return (
+                                <div className="text-center py-8 text-xs text-slate-400 font-medium">
+                                  No scraped industry files in this sector folder.
+                                </div>
+                              );
+                            }
+                            return currentSector.files.map((fileVal) => (
+                              <div
+                                key={fileVal.fileName}
+                                className="bg-white border border-gray-200 rounded p-2 flex items-center justify-between hover:border-blue-400 transition-all group"
+                              >
+                                <div className="flex flex-col min-w-0 pr-2">
+                                  <span className="text-[11px] font-bold text-slate-800 truncate leading-tight group-hover:text-blue-600 transition-colors">
+                                    {fileVal.industryName}
+                                  </span>
+                                  <span className="text-[9px] text-slate-450 font-mono mt-0.5">
+                                    {fileVal.leadCount} total leads • {(fileVal.sizeBytes / 1024).toFixed(1)} KB
+                                  </span>
+                                </div>
+                                <button
+                                  disabled={loadingLeads}
+                                  onClick={() => handleLoadLeadsFromFile(currentSector.sectorId, currentSector.sectorName, fileVal.fileName)}
+                                  className="px-2 py-1 text-[9px] font-bold bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded border border-blue-200 hover:border-blue-700 transition-all shrink-0 flex items-center gap-1 disabled:opacity-50"
+                                >
+                                  {loadingLeads ? (
+                                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                  )}
+                                  Sync & Load
+                                </button>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 rounded border border-emerald-200 bg-emerald-50/30 flex items-start gap-3">
+                <div className="p-4 rounded border border-emerald-250 bg-emerald-50/40 flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-xs font-bold text-emerald-950">File Parsed Successfully</h3>
-                    <p className="text-[10px] text-emerald-700 font-medium mt-0.5">{uploadSuccess}</p>
+                    <h3 className="text-xs font-bold text-emerald-950">
+                      {activeFile ? 'Vault Sync Complete' : 'File Parsed Successfully'}
+                    </h3>
+                    <p className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                      {activeFile 
+                        ? `Synced Sector: ${activeFile.sectorName} (${activeFile.fileName})`
+                        : uploadSuccess}
+                    </p>
                   </div>
                 </div>
 
