@@ -212,12 +212,12 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
         <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
           <thead>
             <tr className="bg-slate-50 border-b border-gray-300 text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
-              <th className="w-12 px-4 py-2.5 text-center">Save</th>
+              <th className="w-36 px-4 py-2.5 text-center">Opp Status</th>
               <th className="w-48 px-4 py-2.5">Company</th>
               <th className="w-56 px-4 py-2.5">Contact Person</th>
               <th className="w-52 px-4 py-2.5">Email & Phone</th>
               <th className="w-32 px-4 py-2.5">Status</th>
-              <th className="px-4 py-2.5">Internal Comment (Click to edit)</th>
+              <th className="w-64 px-4 py-2.5">Internal Comment</th>
               <th className="w-36 px-4 py-2.5 text-center">Created At</th>
               <th className="w-24 px-4 py-2.5 text-center">Actions</th>
             </tr>
@@ -250,14 +250,15 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => toggleSaveLeadToOpportunities(lead.id)}
-                        className={`p-1.5 rounded-full hover:bg-slate-100 transition-colors ${
+                        className={`w-full py-1.5 px-2 rounded text-[10px] font-extrabold uppercase border flex items-center justify-center gap-1 transition-all shadow-sm ${
                           lead.savedToOpportunities 
-                            ? 'text-amber-500 hover:text-amber-600' 
-                            : 'text-slate-300 hover:text-slate-500'
+                            ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800' 
+                            : 'bg-white hover:bg-slate-50 border-gray-300 text-slate-650'
                         }`}
-                        title={lead.savedToOpportunities ? "Saved to Opportunities" : "Save to CRM CRM Opportunities"}
+                        title={lead.savedToOpportunities ? "Saved in Opportunities" : "Transfer to Opportunities"}
                       >
-                        <Star className="w-4 h-4 fill-current" />
+                        <Bookmark className={`w-3.5 h-3.5 ${lead.savedToOpportunities ? 'fill-current text-amber-500' : 'text-slate-400'}`} />
+                        <span>{lead.savedToOpportunities ? 'Preserved' : 'Move to Opp'}</span>
                       </button>
                     </td>
 
@@ -306,39 +307,28 @@ export default function LeadsExcelTable({ mode }: LeadsExcelTableProps) {
 
                     {/* Internal Comment Input Column */}
                     <td className="px-4 py-3 relative">
-                      {editingCommentId === lead.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={tempCommentText}
-                            onChange={(e) => setTempCommentText(e.target.value)}
-                            onBlur={() => handleCommentBlur(lead.id)}
-                            onKeyDown={(e) => handleCommentKeyDown(e, lead.id)}
-                            autoFocus
-                            className="w-full px-2 py-1 border border-blue-500 rounded text-xs text-slate-800 bg-white focus:outline-none"
-                          />
-                          <button className="text-emerald-600">
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div 
-                          onClick={() => {
-                            setEditingCommentId(lead.id);
-                            setTempCommentText(lead.comment || '');
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          defaultValue={lead.comment || ''}
+                          onBlur={(e) => {
+                            updateLeadComment(lead.id, e.target.value);
+                            setSavedFeedbackId(lead.id);
+                            setTimeout(() => setSavedFeedbackId(null), 1500);
                           }}
-                          className="min-h-[26px] px-2 py-1 border border-transparent hover:border-gray-200 hover:bg-slate-50 rounded cursor-text flex items-center justify-between text-slate-650"
-                        >
-                          <span className="truncate italic pr-4">
-                            {lead.comment || 'Add a comment...'}
-                          </span>
-                          <MessageSquare className="w-3 h-3 text-slate-350 opacity-0 group-hover:opacity-100 shrink-0" />
-                        </div>
-                      )}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          placeholder="Add comment..."
+                          className="w-full px-2.5 py-1 border border-gray-250 hover:border-gray-350 focus:border-blue-500 rounded text-xs text-slate-800 bg-slate-50/50 hover:bg-white focus:bg-white transition-all focus:outline-none font-medium"
+                        />
+                      </div>
                       
                       {/* Checkmark notification for saved edits */}
                       {savedFeedbackId === lead.id && (
-                        <span className="absolute right-2 top-1 text-[9px] text-emerald-650 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 flex items-center gap-0.5 animate-fade-in z-10 font-bold">
+                        <span className="absolute right-6 top-1 text-[9px] text-emerald-650 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-250 flex items-center gap-0.5 animate-fade-in z-10 font-bold">
                           <Check className="w-2.5 h-2.5" /> Saved
                         </span>
                       )}

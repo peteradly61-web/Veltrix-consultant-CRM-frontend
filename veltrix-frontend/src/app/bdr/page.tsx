@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import LeadsExcelTable from './components/LeadsExcelTable';
 import MeetingsTable from './components/MeetingsTable';
+import BdrCalendar from './components/BdrCalendar';
 import { RefreshCw, LayoutGrid, Layers, Hammer, Activity } from 'lucide-react';
 
 function PlaceholderView({ title }: { title: string }) {
@@ -114,8 +115,12 @@ export default function BdrWorkspace() {
           {activeBdrTab === 'meetings' && (
             <MeetingsTable />
           )}
+
+          {activeBdrTab === 'calendar' && (
+            <BdrCalendar />
+          )}
           
-          {activeBdrTab !== 'queue' && activeBdrTab !== 'opportunities' && activeBdrTab !== 'meetings' && (
+          {activeBdrTab !== 'queue' && activeBdrTab !== 'opportunities' && activeBdrTab !== 'meetings' && activeBdrTab !== 'calendar' && (
             <PlaceholderView title={activeBdrTab.charAt(0).toUpperCase() + activeBdrTab.slice(1)} />
           )}
         </main>
