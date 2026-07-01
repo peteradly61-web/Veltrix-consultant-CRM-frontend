@@ -466,13 +466,19 @@ export default function AdminLeads() {
                   : 'CSV Ingestion Control'}
               </span>
             </h2>
-            {rawParsedLeads.length > 0 && (
+            {rawParsedLeads.length > 0 ? (
               <button 
                 onClick={handleResetWorkspace}
                 className="text-[10px] text-red-650 font-bold hover:underline"
               >
                 Clear Workspace
               </button>
+            ) : (
+              sectors.length > 0 && (
+                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 border border-blue-200 rounded font-bold font-mono">
+                  Vault Total: {sectors.reduce((sum, sec) => sum + sec.files.reduce((fSum, f) => fSum + f.leadCount, 0), 0).toLocaleString()} leads
+                </span>
+              )
             )}
           </div>
           
@@ -555,11 +561,14 @@ export default function AdminLeads() {
                           {sectors.length === 0 ? (
                             <option value="">No sectors found in vault</option>
                           ) : (
-                            sectors.map((sec) => (
-                              <option key={sec.sectorId} value={sec.sectorId}>
-                                {sec.sectorName} ({sec.files.length} Industries)
-                              </option>
-                            ))
+                            sectors.map((sec) => {
+                              const sectorTotal = sec.files.reduce((sum, f) => sum + f.leadCount, 0);
+                              return (
+                                <option key={sec.sectorId} value={sec.sectorId}>
+                                  {sec.sectorName} ({sectorTotal.toLocaleString()} leads)
+                                </option>
+                              );
+                            })
                           )}
                         </select>
                       )}
@@ -568,7 +577,10 @@ export default function AdminLeads() {
                     {/* Files list for selected sector */}
                     <div className="flex-1 flex flex-col min-h-[220px]">
                       <span className="block text-[10px] font-bold uppercase text-slate-450 mb-1.5">
-                        Available Industry Scrapes
+                        Available Industry Scrapes ({(() => {
+                          const currentSector = sectors.find(s => s.sectorId === selectedSectorId);
+                          return currentSector ? `${currentSector.files.length} Industries` : '0 Industries';
+                        })()})
                       </span>
                       
                       {loadingSectors ? (
