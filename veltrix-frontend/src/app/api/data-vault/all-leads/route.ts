@@ -275,6 +275,9 @@ export async function GET(request: Request) {
 
     // Merge ingested leads if they are not already in scraperEmails
     ingestedLeads.forEach((lead) => {
+      // Guard: skip records without a valid email address
+      if (!lead.contact_email) return;
+
       const emailLower = lead.contact_email.toLowerCase();
       if (!scraperEmails.has(emailLower)) {
         const assignment = assignments[emailLower];
@@ -296,6 +299,7 @@ export async function GET(request: Request) {
         scraperEmails.add(emailLower); // Prevent duplicate addition
       }
     });
+
 
     // Add manually created assignments (not in scraper list)
     Object.keys(assignments).forEach(emailLower => {
