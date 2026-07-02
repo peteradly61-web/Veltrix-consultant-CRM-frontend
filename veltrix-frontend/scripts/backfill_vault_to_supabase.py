@@ -22,6 +22,51 @@ def parse_env_local(filepath):
                 env_vars[key] = val
     return env_vars
 
+SECTOR_NAME_MAP = {
+    "agriculture_food_processing": "Agriculture & Food Processing",
+    "chemical_plastic_rubber": "Chemical, Plastic & Rubber",
+    "electrical_machinery_electronics": "Electrical Machinery & Electronics",
+    "food_nutrition": "Food & Nutrition",
+    "home_furniture": "Home & Furniture",
+    "industry_manufacturing": "Industry & Manufacturing",
+    "machinery_appliances_automation": "Machinery, Appliances & Automation",
+    "medical_devices_pharma": "Medical Devices & Pharma",
+    "metal_industries_metallurgy": "Metal Industries & Metallurgy",
+    "mineral_products_building": "Mineral Products & Building",
+    "technology_health": "Technology & Health",
+    "textiles_apparel_fashion": "Textiles, Apparel & Fashion",
+    "trade_services": "Trade & Services",
+    "transportation_automotive": "Transportation & Automotive",
+    "wood_paper_forestry": "Wood, Paper & Forestry"
+}
+
+def parse_name_from_email(email):
+    if not email:
+        return 'Prospect'
+    username = email.split('@')[0].lower().strip()
+    if not username:
+        return 'Prospect'
+    generics = {
+        'info', 'sales', 'support', 'hello', 'contact', 'office', 'admin', 
+        'jobs', 'careers', 'billing', 'team', 'help', 'service', 'inbound',
+        'media', 'press', 'marketing', 'orders', 'enquiry', 'enquiries'
+    }
+    if username in generics:
+        return 'Contact Representative'
+    
+    split_chars = ['.', '_', '-']
+    for char in split_chars:
+        if char in username:
+            parts = [p.capitalize().strip() for p in username.split(char) if p.strip()]
+            if len(parts) >= 2:
+                return f"{parts[0]} {parts[1]}"
+            elif len(parts) == 1:
+                return parts[0]
+    
+    name = username.capitalize().strip()
+    return name if name else 'Prospect'
+
+
 def main():
     root_dir = Path(__file__).resolve().parent.parent
     env_path = root_dir / '.env.local'
@@ -60,6 +105,9 @@ def main():
             df = pd.read_csv(csv_file, dtype=str)
             total_processed_rows += len(df)
             
+            sector_dir = csv_file.parent.name
+            data_pool = SECTOR_NAME_MAP.get(sector_dir, sector_dir.replace('_', ' ').title())
+
             for _, row in df.iterrows():
                 email = row.get('Contact_Email')
                 if pd.isna(email) or not isinstance(email, str):
@@ -73,14 +121,35 @@ def main():
                 company = company_name.strip() if (isinstance(company_name, str) and company_name.strip()) else 'Unknown Company'
                 if len(company) > 255:
                     company = company[:255]
+
+                contact_name = parse_name_from_email(email)
+
+                website = row.get('Website_URL')
+                website = website.strip() if (isinstance(website, str) and website.strip()) else ''
+                if len(website) > 255:
+                    website = website[:255]
+
+                location = row.get('Location')
+                location = location.strip() if (isinstance(location, str) and location.strip()) else ''
+                if len(location) > 255:
+                    location = location[:255]
+
+                industry_val = row.get('Industry')
+                industry_val = industry_val.strip() if (isinstance(industry_val, str) and industry_val.strip()) else 'Other'
+                if len(industry_val) > 255:
+                    industry_val = industry_val[:255]
                 
                 # Keep first match, or update if we have a better company name
                 if email not in unique_leads:
                     unique_leads[email] = {
                         'company_name': company,
-                        'contact_name': 'Prospect',
+                        'contact_name': contact_name,
                         'email': email,
-                        'status': 'new'
+                        'status': 'new',
+                        'website': website,
+                        'location': location,
+                        'industry': industry_val,
+                        'data_pool_name': data_pool
                     }
         except Exception as e:
             print(f"Error reading {csv_file}: {e}")

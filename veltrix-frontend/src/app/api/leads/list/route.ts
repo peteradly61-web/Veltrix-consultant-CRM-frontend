@@ -58,9 +58,9 @@ export async function GET() {
               company_name: l.company_name || 'Unknown',
               contact_email: l.lead_email,
               contact_name: l.contact_name || 'Prospect',
-              title: 'N/A',
-              industry: 'Other',
-              data_pool_name: 'Live Stream',
+              title: l.title || 'N/A',
+              industry: l.industry || 'Other',
+              data_pool_name: l.data_pool_name || 'Live Stream',
               status: 'unassigned',
               created_at: l.lead_created_at
             }));

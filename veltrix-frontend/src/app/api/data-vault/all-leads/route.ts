@@ -216,6 +216,24 @@ function syncCache() {
   }
 }
 
+const SECTOR_NAME_MAP: Record<string, string> = {
+  "agriculture_food_processing": "Agriculture & Food Processing",
+  "chemical_plastic_rubber": "Chemical, Plastic & Rubber",
+  "electrical_machinery_electronics": "Electrical Machinery & Electronics",
+  "food_nutrition": "Food & Nutrition",
+  "home_furniture": "Home & Furniture",
+  "industry_manufacturing": "Industry & Manufacturing",
+  "machinery_appliances_automation": "Machinery, Appliances & Automation",
+  "medical_devices_pharma": "Medical Devices & Pharma",
+  "metal_industries_metallurgy": "Metal Industries & Metallurgy",
+  "mineral_products_building": "Mineral Products & Building",
+  "technology_health": "Technology & Health",
+  "textiles_apparel_fashion": "Textiles, Apparel & Fashion",
+  "trade_services": "Trade & Services",
+  "transportation_automotive": "Transportation & Automotive",
+  "wood_paper_forestry": "Wood, Paper & Forestry"
+};
+
 // GET all leads with pagination, search, and filters
 export async function GET(request: Request) {
   try {
@@ -257,134 +275,132 @@ export async function GET(request: Request) {
 
       // 4. Merge and Filter leads
       filtered = cache.leadsList.map((lead, index) => {
-      const emailLower = lead.email.toLowerCase();
-      const assignment = assignments[emailLower];
-      
-      const defaultComment = `Website: ${lead.website || 'N/A'}\nLocation: ${lead.location || 'N/A'}\nSector: ${lead.sectorName}`;
-
-      return {
-        id: `lead-scraped-${emailLower}`,
-        company: lead.company,
-        email: lead.email,
-        website: lead.website,
-        location: lead.location,
-        industry: lead.industry,
-        sectorId: lead.sectorId,
-        sectorName: lead.sectorName,
-        assignedTo: assignment?.assignedTo || undefined,
-        status: assignment?.status || 'new',
-        comment: assignment?.comment || defaultComment,
-        createdAt: assignment?.createdAt || new Date(Date.now() - (index * 60 * 1000)).toISOString(),
-        savedToOpportunities: assignment?.savedToOpportunities || false
-      };
-    });
-
-    // Merge ingested leads if they are not already in scraperEmails
-    ingestedLeads.forEach((lead) => {
-      // Guard: skip records without a valid email address
-      if (!lead.contact_email) return;
-
-      const emailLower = lead.contact_email.toLowerCase();
-      if (!scraperEmails.has(emailLower)) {
+        const emailLower = lead.email.toLowerCase();
         const assignment = assignments[emailLower];
-        filtered.push({
-          id: lead.id,
-          company: lead.company_name || 'Unknown Company',
-          email: lead.contact_email,
-          website: '',
-          location: 'Unknown',
+        
+        const defaultComment = `Website: ${lead.website || 'N/A'}\nLocation: ${lead.location || 'N/A'}\nSector: ${lead.sectorName}`;
+
+        return {
+          id: `lead-scraped-${emailLower}`,
+          company: lead.company,
+          email: lead.email,
+          website: lead.website,
+          location: lead.location,
           industry: lead.industry,
-          sectorId: 'ingested',
-          sectorName: lead.data_pool_name,
+          sectorId: lead.sectorId,
+          sectorName: lead.sectorName,
           assignedTo: assignment?.assignedTo || undefined,
-          status: assignment?.status || lead.status || 'new',
-          comment: assignment?.comment || `Sourced from live stream: ${lead.data_pool_name}`,
-          createdAt: assignment?.createdAt || lead.created_at,
+          status: assignment?.status || 'new',
+          comment: assignment?.comment || defaultComment,
+          createdAt: assignment?.createdAt || new Date(Date.now() - (index * 60 * 1000)).toISOString(),
           savedToOpportunities: assignment?.savedToOpportunities || false
-        });
-        scraperEmails.add(emailLower); // Prevent duplicate addition
-      }
-    });
+        };
+      });
 
+      // Merge ingested leads if they are not already in scraperEmails
+      ingestedLeads.forEach((lead) => {
+        // Guard: skip records without a valid email address
+        if (!lead.contact_email) return;
 
-    // Add manually created assignments (not in scraper list)
-    Object.keys(assignments).forEach(emailLower => {
-      if (!scraperEmails.has(emailLower)) {
-        const assign = assignments[emailLower];
-        // Parse metadata from comment if possible, or use default fallback values
-        let company = 'Manual Lead';
-        let industry = 'Other';
-        if (assign.comment) {
-          const lines = assign.comment.split('\n');
-          const companyLine = lines.find(l => l.startsWith('Company: '));
-          const industryLine = lines.find(l => l.startsWith('Industry: '));
-          if (companyLine) company = companyLine.replace('Company: ', '').trim();
-          if (industryLine) industry = industryLine.replace('Industry: ', '').trim();
+        const emailLower = lead.contact_email.toLowerCase();
+        if (!scraperEmails.has(emailLower)) {
+          const assignment = assignments[emailLower];
+          filtered.push({
+            id: lead.id,
+            company: lead.company_name || 'Unknown Company',
+            email: lead.contact_email,
+            website: '',
+            location: 'Unknown',
+            industry: lead.industry,
+            sectorId: 'ingested',
+            sectorName: lead.data_pool_name,
+            assignedTo: assignment?.assignedTo || undefined,
+            status: assignment?.status || lead.status || 'new',
+            comment: assignment?.comment || `Sourced from live stream: ${lead.data_pool_name}`,
+            createdAt: assignment?.createdAt || lead.created_at,
+            savedToOpportunities: assignment?.savedToOpportunities || false
+          });
+          scraperEmails.add(emailLower); // Prevent duplicate addition
         }
+      });
 
-        filtered.push({
-          id: `lead-manual-${emailLower}`,
-          company,
-          email: emailLower,
-          website: '',
-          location: 'Manual Entry',
-          industry,
-          sectorId: 'manual',
-          sectorName: 'Manual Entry',
-          assignedTo: assign.assignedTo,
-          status: assign.status,
-          comment: assign.comment || '',
-          createdAt: assign.createdAt || new Date().toISOString(),
-          savedToOpportunities: assign.savedToOpportunities || false
-        });
+      // Add manually created assignments (not in scraper list)
+      Object.keys(assignments).forEach(emailLower => {
+        if (!scraperEmails.has(emailLower)) {
+          const assign = assignments[emailLower];
+          // Parse metadata from comment if possible, or use default fallback values
+          let company = 'Manual Lead';
+          let industry = 'Other';
+          if (assign.comment) {
+            const lines = assign.comment.split('\n');
+            const companyLine = lines.find(l => l.startsWith('Company: '));
+            const industryLine = lines.find(l => l.startsWith('Industry: '));
+            if (companyLine) company = companyLine.replace('Company: ', '').trim();
+            if (industryLine) industry = industryLine.replace('Industry: ', '').trim();
+          }
+
+          filtered.push({
+            id: `lead-manual-${emailLower}`,
+            company,
+            email: emailLower,
+            website: '',
+            location: 'Manual Entry',
+            industry,
+            sectorId: 'manual',
+            sectorName: 'Manual Entry',
+            assignedTo: assign.assignedTo,
+            status: assign.status,
+            comment: assign.comment || '',
+            createdAt: assign.createdAt || new Date().toISOString(),
+            savedToOpportunities: assign.savedToOpportunities || false
+          });
+        }
+      });
+
+      // Apply Filters
+      if (opportunities) {
+        filtered = filtered.filter(l => l.savedToOpportunities);
       }
-    });
 
-    // Apply Filters
-    if (opportunities) {
-      filtered = filtered.filter(l => l.savedToOpportunities);
-    }
-
-    // Apply Filters
-    if (search) {
-      filtered = filtered.filter(l => 
-        l.company.toLowerCase().includes(search) ||
-        l.email.toLowerCase().includes(search) ||
-        l.industry.toLowerCase().includes(search) ||
-        (l.assignedTo && l.assignedTo.toLowerCase().includes(search))
-      );
-    }
-
-    if (sector && sector !== 'all') {
-      filtered = filtered.filter(l => l.sectorId === sector);
-    }
-
-    if (status && status !== 'all') {
-      if (status === 'unassigned') {
-        filtered = filtered.filter(l => !l.assignedTo);
-      } else {
-        filtered = filtered.filter(l => l.status === status);
+      if (search) {
+        filtered = filtered.filter(l => 
+          l.company.toLowerCase().includes(search) ||
+          l.email.toLowerCase().includes(search) ||
+          l.industry.toLowerCase().includes(search) ||
+          (l.assignedTo && l.assignedTo.toLowerCase().includes(search))
+        );
       }
-    }
 
-    if (bdr && bdr !== 'all') {
-      if (bdr === 'unassigned') {
-        filtered = filtered.filter(l => !l.assignedTo);
-      } else {
-        filtered = filtered.filter(l => l.assignedTo === bdr);
+      if (sector && sector !== 'all') {
+        filtered = filtered.filter(l => l.sectorId === sector);
       }
+
+      if (status && status !== 'all') {
+        if (status === 'unassigned') {
+          filtered = filtered.filter(l => !l.assignedTo);
+        } else {
+          filtered = filtered.filter(l => l.status === status);
+        }
+      }
+
+      if (bdr && bdr !== 'all') {
+        if (bdr === 'unassigned') {
+          filtered = filtered.filter(l => !l.assignedTo);
+        } else {
+          filtered = filtered.filter(l => l.assignedTo === bdr);
+        }
+      }
+
+      // Sort: unassigned first, then by date desc
+      filtered.sort((a, b) => {
+        if (!a.assignedTo && b.assignedTo) return -1;
+        if (a.assignedTo && !b.assignedTo) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     }
 
-    // Sort: unassigned first, then by date desc
-    filtered.sort((a, b) => {
-      if (!a.assignedTo && b.assignedTo) return -1;
-      if (a.assignedTo && !b.assignedTo) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-  }
-
-  // 5. Supabase fallback — used on Vercel where local filesystem is unavailable
-  if (isVercel || filtered.length === 0) {
+    // 5. Supabase fallback — used on Vercel where local filesystem is unavailable
+    if (isVercel || filtered.length === 0) {
       const supabase = getSupabaseServer();
       if (supabase) {
         try {
@@ -405,6 +421,12 @@ export async function GET(request: Request) {
           if (status && status !== 'all') {
             query = query.eq('lead_status', status);
           }
+          if (sector && sector !== 'all') {
+            const cleanSectorName = SECTOR_NAME_MAP[sector];
+            if (cleanSectorName) {
+              query = query.eq('data_pool_name', cleanSectorName);
+            }
+          }
 
           const from = (page - 1) * limit;
           const to = from + limit - 1;
@@ -415,21 +437,30 @@ export async function GET(request: Request) {
           if (sbError) {
             console.warn('[all-leads] Supabase fallback error:', sbError.message);
           } else if (sbLeads && sbLeads.length > 0) {
-            const sbFormatted = sbLeads.map((l: any) => ({
-              id: l.lead_id || `lead-sb-${l.lead_email}`,
-              company: l.company_name || 'Unknown',
-              email: l.lead_email,
-              website: '',
-              location: 'Unknown',
-              industry: 'Other',
-              sectorId: 'supabase',
-              sectorName: 'Live Stream',
-              assignedTo: l.closing_bdr_name || undefined,
-              status: l.lead_status || 'new',
-              comment: '',
-              createdAt: l.lead_created_at,
-              savedToOpportunities: false
-            }));
+            const sbFormatted = sbLeads.map((l: any) => {
+              let sectorId = 'supabase';
+              if (l.data_pool_name) {
+                const foundEntry = Object.entries(SECTOR_NAME_MAP).find(([_, val]) => val === l.data_pool_name);
+                if (foundEntry) {
+                  sectorId = foundEntry[0];
+                }
+              }
+              return {
+                id: l.lead_id || `lead-sb-${l.lead_email}`,
+                company: l.company_name || 'Unknown',
+                email: l.lead_email,
+                website: l.website || '',
+                location: l.location || 'Unknown',
+                industry: l.industry || 'Other',
+                sectorId: sectorId,
+                sectorName: l.data_pool_name || 'Live Stream',
+                assignedTo: l.closing_bdr_name || undefined,
+                status: l.lead_status || 'new',
+                comment: l.comment || '',
+                createdAt: l.lead_created_at,
+                savedToOpportunities: false
+              };
+            });
 
             return NextResponse.json({
               success: true,
@@ -487,14 +518,93 @@ export async function POST(request: Request) {
     }
 
     const currentAssignments = readAssignments();
+    const supabase = getSupabaseServer();
 
+    // 1. Database Persistence for assignments (if Supabase is available)
+    if (supabase) {
+      try {
+        for (const assign of newAssignments) {
+          const emailLower = assign.email.toLowerCase();
+          
+          if (action === 'delete') {
+            const { data: leadData } = await supabase.from('leads').select('id').eq('email', emailLower).single();
+            if (leadData?.id) {
+              // Deactivate current active assignments
+              await supabase.from('lead_assignments')
+                .update({ unassigned_at: new Date().toISOString() })
+                .eq('lead_id', leadData.id)
+                .is('unassigned_at', null);
+
+              // Reset status and comment in leads table
+              await supabase.from('leads')
+                .update({ status: 'new', comment: '' })
+                .eq('id', leadData.id);
+            }
+          } else {
+            const { data: leadData } = await supabase.from('leads').select('id').eq('email', emailLower).single();
+            let bdrId = null;
+            if (assign.assignedTo) {
+              const { data: bdrData } = await supabase.from('bdrs').select('id').eq('name', assign.assignedTo).single();
+              bdrId = bdrData?.id;
+            }
+
+            if (leadData?.id) {
+              const { data: activeAssign } = await supabase.from('lead_assignments')
+                .select('id, bdr_id')
+                .eq('lead_id', leadData.id)
+                .is('unassigned_at', null)
+                .maybeSingle();
+
+              if (activeAssign) {
+                if (bdrId && activeAssign.bdr_id !== bdrId) {
+                  // Deactivate old assignment
+                  await supabase.from('lead_assignments')
+                    .update({ unassigned_at: new Date().toISOString() })
+                    .eq('id', activeAssign.id);
+
+                  // Insert new assignment
+                  await supabase.from('lead_assignments').insert({
+                    lead_id: leadData.id,
+                    bdr_id: bdrId,
+                    is_creator: false
+                  });
+                }
+              } else if (bdrId) {
+                const { data: creatorAssign } = await supabase.from('lead_assignments')
+                  .select('id')
+                  .eq('lead_id', leadData.id)
+                  .eq('is_creator', true)
+                  .maybeSingle();
+
+                await supabase.from('lead_assignments').insert({
+                  lead_id: leadData.id,
+                  bdr_id: bdrId,
+                  is_creator: !creatorAssign
+                });
+              }
+
+              // Update leads table status and comment
+              const updateObj: any = {};
+              if (assign.status) updateObj.status = assign.status;
+              if (assign.comment !== undefined) updateObj.comment = assign.comment;
+              if (Object.keys(updateObj).length > 0) {
+                await supabase.from('leads').update(updateObj).eq('id', leadData.id);
+              }
+            }
+          }
+        }
+      } catch (dbErr: any) {
+        console.error('Supabase assignment sync failed:', dbErr.message);
+      }
+    }
+
+    // 2. Local File System Fallback
     newAssignments.forEach((assign: any) => {
       const emailLower = assign.email.toLowerCase();
       
       if (action === 'delete') {
         delete currentAssignments[emailLower];
       } else {
-        // Create or update assignment
         const existing = currentAssignments[emailLower] || {};
         currentAssignments[emailLower] = {
           assignedTo: assign.assignedTo || existing.assignedTo,
