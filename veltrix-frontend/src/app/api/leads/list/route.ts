@@ -10,15 +10,16 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const isVercel = !!process.env.VERCEL;
     let leads: any[] = [];
-    if (fs.existsSync(INGESTED_LEADS_FILE)) {
+    if (!isVercel && fs.existsSync(INGESTED_LEADS_FILE)) {
       const content = await fs.promises.readFile(INGESTED_LEADS_FILE, 'utf-8');
       leads = JSON.parse(content || '[]');
     }
 
     // Load current assignments so we can exclude already-assigned leads
     let assignments: Record<string, any> = {};
-    if (fs.existsSync(ASSIGNMENTS_FILE)) {
+    if (!isVercel && fs.existsSync(ASSIGNMENTS_FILE)) {
       try {
         const assignContent = fs.readFileSync(ASSIGNMENTS_FILE, 'utf-8');
         assignments = JSON.parse(assignContent || '{}');
@@ -38,8 +39,8 @@ export async function GET() {
       })
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    // Fallback: If empty, read unassigned leads from Supabase
-    if (unassigned.length === 0) {
+    // Fallback: If empty or running on Vercel, read unassigned leads from Supabase
+    if (isVercel || unassigned.length === 0) {
       const supabase = getSupabaseServer();
       if (supabase) {
         try {

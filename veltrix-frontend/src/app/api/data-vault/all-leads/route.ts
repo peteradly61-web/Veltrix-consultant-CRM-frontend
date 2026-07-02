@@ -219,8 +219,7 @@ function syncCache() {
 // GET all leads with pagination, search, and filters
 export async function GET(request: Request) {
   try {
-    // 1. Sync files with cache
-    syncCache();
+    const isVercel = !!process.env.VERCEL;
 
     // 2. Read query params
     const { searchParams } = new URL(request.url);
@@ -232,26 +231,32 @@ export async function GET(request: Request) {
     const bdr = searchParams.get('bdr') || '';
     const opportunities = searchParams.get('opportunities') === 'true';
 
-    // 3. Load persistent BDR assignments
-    const assignments = readAssignments();
+    let filtered: any[] = [];
 
-    // Get all scraper email addresses as a Set for fast lookup
-    const scraperEmails = new Set(cache.leadsList.map(l => l.email.toLowerCase()));
+    if (!isVercel) {
+      // 1. Sync files with cache
+      syncCache();
 
-    // Load locally ingested leads to merge
-    const INGESTED_LEADS_FILE = path.resolve(process.cwd(), 'data/ingested_leads.json');
-    let ingestedLeads: any[] = [];
-    if (fs.existsSync(INGESTED_LEADS_FILE)) {
-      try {
-        const content = fs.readFileSync(INGESTED_LEADS_FILE, 'utf-8');
-        ingestedLeads = JSON.parse(content || '[]');
-      } catch (err) {
-        console.error('Error reading ingested leads in all-leads:', err);
+      // 3. Load persistent BDR assignments
+      const assignments = readAssignments();
+
+      // Get all scraper email addresses as a Set for fast lookup
+      const scraperEmails = new Set(cache.leadsList.map(l => l.email.toLowerCase()));
+
+      // Load locally ingested leads to merge
+      const INGESTED_LEADS_FILE = path.resolve(process.cwd(), 'data/ingested_leads.json');
+      let ingestedLeads: any[] = [];
+      if (fs.existsSync(INGESTED_LEADS_FILE)) {
+        try {
+          const content = fs.readFileSync(INGESTED_LEADS_FILE, 'utf-8');
+          ingestedLeads = JSON.parse(content || '[]');
+        } catch (err) {
+          console.error('Error reading ingested leads in all-leads:', err);
+        }
       }
-    }
 
-    // 4. Merge and Filter leads
-    let filtered = cache.leadsList.map((lead, index) => {
+      // 4. Merge and Filter leads
+      filtered = cache.leadsList.map((lead, index) => {
       const emailLower = lead.email.toLowerCase();
       const assignment = assignments[emailLower];
       
@@ -376,9 +381,10 @@ export async function GET(request: Request) {
       if (a.assignedTo && !b.assignedTo) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
+  }
 
-    // 5. Supabase fallback — used on Vercel where local filesystem is unavailable
-    if (filtered.length === 0) {
+  // 5. Supabase fallback — used on Vercel where local filesystem is unavailable
+  if (isVercel || filtered.length === 0) {
       const supabase = getSupabaseServer();
       if (supabase) {
         try {
