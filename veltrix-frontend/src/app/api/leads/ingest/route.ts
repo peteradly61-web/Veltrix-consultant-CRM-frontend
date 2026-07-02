@@ -97,33 +97,34 @@ export async function POST(request: Request) {
     });
 
     // 4. Persistence to Supabase (Fire-and-forget — never blocks the response)
-    //    Maps local schema fields to the correct Supabase column names.
-    supabaseServer
-      .from('leads')
-      .upsert(
-        validLeads.map((lead) => ({
-          email: lead.contact_email,
-          company_name: lead.company_name,
-          contact_name: lead.contact_name,
-          title: lead.title,
-          industry: lead.industry,
-          data_pool_name: lead.data_pool_name,
-          status: 'new',
-          created_at: lead.created_at
-        })),
-        { onConflict: 'email' }
-      )
-      .select()
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn('[SCRAPER INGEST] Supabase sync warning (ignored):', error.message);
-        } else {
-          console.log('[SCRAPER INGEST] Supabase sync successful:', data?.length, 'records');
-        }
-      })
-      .catch((dbErr: any) => {
-        console.warn('[SCRAPER INGEST] Supabase connection failed (local storage is source of truth):', dbErr.message || dbErr);
-      });
+    //    Wrapped in Promise.resolve() so TypeScript recognises it as a native
+    //    Promise with a full .then().catch() chain (Supabase returns PromiseLike).
+    Promise.resolve(
+      supabaseServer
+        .from('leads')
+        .upsert(
+          validLeads.map((lead) => ({
+            email: lead.contact_email,
+            company_name: lead.company_name,
+            contact_name: lead.contact_name,
+            title: lead.title,
+            industry: lead.industry,
+            data_pool_name: lead.data_pool_name,
+            status: 'new',
+            created_at: lead.created_at
+          })),
+          { onConflict: 'email' }
+        )
+        .select()
+    ).then(({ data, error }: { data: any; error: any }) => {
+      if (error) {
+        console.warn('[SCRAPER INGEST] Supabase sync warning (ignored):', error.message);
+      } else {
+        console.log('[SCRAPER INGEST] Supabase sync successful:', data?.length, 'records');
+      }
+    }).catch((dbErr: any) => {
+      console.warn('[SCRAPER INGEST] Supabase connection failed (local storage is source of truth):', dbErr.message || dbErr);
+    });
 
     return NextResponse.json({
       success: true,
