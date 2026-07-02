@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 
 interface ScrapedLead {
   company: string;
@@ -371,13 +372,84 @@ export async function GET(request: Request) {
 
     // Sort: unassigned first, then by date desc
     filtered.sort((a, b) => {
-      // Prioritize unassigned
       if (!a.assignedTo && b.assignedTo) return -1;
       if (a.assignedTo && !b.assignedTo) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    // 5. Paginate
+    // 5. Supabase fallback — used on Vercel where local filesystem is unavailable
+    if (filtered.length === 0) {
+      const supabase = getSupabaseServer();
+      if (supabase) {
+        try {
+          let query = supabase.from('leads').select('*', { count: 'exact' });
+
+          if (search) {
+            query = query.or(
+              `email.ilike.%${search}%,company_name.ilike.%${search}%,industry.ilike.%${search}%`
+            );
+          }
+          if (bdr && bdr !== 'all') {
+            if (bdr === 'unassigned') {
+              query = query.is('assigned_to', null);
+            } else {
+              query = query.eq('assigned_to', bdr);
+            }
+          }
+          if (status && status !== 'all') {
+            if (status === 'unassigned') {
+              query = query.is('assigned_to', null);
+            } else {
+              query = query.eq('status', status);
+            }
+          }
+          if (opportunities) {
+            query = query.eq('saved_to_opportunities', true);
+          }
+
+          const from = (page - 1) * limit;
+          const to = from + limit - 1;
+          query = query.order('created_at', { ascending: false }).range(from, to);
+
+          const { data: sbLeads, error: sbError, count } = await query;
+
+          if (sbError) {
+            console.warn('[all-leads] Supabase fallback error:', sbError.message);
+          } else if (sbLeads && sbLeads.length > 0) {
+            const sbFormatted = sbLeads.map((l: any) => ({
+              id: l.id || `lead-sb-${l.email}`,
+              company: l.company_name || 'Unknown',
+              email: l.email,
+              website: l.website_url || '',
+              location: l.location || 'Unknown',
+              industry: l.industry || 'Other',
+              sectorId: 'supabase',
+              sectorName: l.data_pool_name || 'Live Stream',
+              assignedTo: l.assigned_to || undefined,
+              status: l.status || 'new',
+              comment: l.comment || '',
+              createdAt: l.created_at,
+              savedToOpportunities: l.saved_to_opportunities || false
+            }));
+
+            return NextResponse.json({
+              success: true,
+              data: sbFormatted,
+              pagination: {
+                page,
+                limit,
+                total: count || sbFormatted.length,
+                totalPages: Math.ceil((count || sbFormatted.length) / limit)
+              }
+            });
+          }
+        } catch (sbErr: any) {
+          console.warn('[all-leads] Supabase fallback exception:', sbErr.message);
+        }
+      }
+    }
+
+    // 6. Paginate local results
     const totalCount = filtered.length;
     const startIndex = (page - 1) * limit;
     const paginatedLeads = filtered.slice(startIndex, startIndex + limit);
