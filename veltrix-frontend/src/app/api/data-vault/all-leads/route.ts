@@ -382,34 +382,27 @@ export async function GET(request: Request) {
       const supabase = getSupabaseServer();
       if (supabase) {
         try {
-          let query = supabase.from('leads').select('*', { count: 'exact' });
+          let query = supabase.from('v_lead_attribution').select('*', { count: 'exact' });
 
           if (search) {
             query = query.or(
-              `email.ilike.%${search}%,company_name.ilike.%${search}%,industry.ilike.%${search}%`
+              `lead_email.ilike.%${search}%,company_name.ilike.%${search}%,contact_name.ilike.%${search}%`
             );
           }
           if (bdr && bdr !== 'all') {
             if (bdr === 'unassigned') {
-              query = query.is('assigned_to', null);
+              query = query.is('closing_bdr_id', null);
             } else {
-              query = query.eq('assigned_to', bdr);
+              query = query.eq('closing_bdr_name', bdr);
             }
           }
           if (status && status !== 'all') {
-            if (status === 'unassigned') {
-              query = query.is('assigned_to', null);
-            } else {
-              query = query.eq('status', status);
-            }
-          }
-          if (opportunities) {
-            query = query.eq('saved_to_opportunities', true);
+            query = query.eq('lead_status', status);
           }
 
           const from = (page - 1) * limit;
           const to = from + limit - 1;
-          query = query.order('created_at', { ascending: false }).range(from, to);
+          query = query.order('lead_created_at', { ascending: false }).range(from, to);
 
           const { data: sbLeads, error: sbError, count } = await query;
 
@@ -417,19 +410,19 @@ export async function GET(request: Request) {
             console.warn('[all-leads] Supabase fallback error:', sbError.message);
           } else if (sbLeads && sbLeads.length > 0) {
             const sbFormatted = sbLeads.map((l: any) => ({
-              id: l.id || `lead-sb-${l.email}`,
+              id: l.lead_id || `lead-sb-${l.lead_email}`,
               company: l.company_name || 'Unknown',
-              email: l.email,
-              website: l.website_url || '',
-              location: l.location || 'Unknown',
-              industry: l.industry || 'Other',
+              email: l.lead_email,
+              website: '',
+              location: 'Unknown',
+              industry: 'Other',
               sectorId: 'supabase',
-              sectorName: l.data_pool_name || 'Live Stream',
-              assignedTo: l.assigned_to || undefined,
-              status: l.status || 'new',
-              comment: l.comment || '',
-              createdAt: l.created_at,
-              savedToOpportunities: l.saved_to_opportunities || false
+              sectorName: 'Live Stream',
+              assignedTo: l.closing_bdr_name || undefined,
+              status: l.lead_status || 'new',
+              comment: '',
+              createdAt: l.lead_created_at,
+              savedToOpportunities: false
             }));
 
             return NextResponse.json({

@@ -44,24 +44,24 @@ export async function GET() {
       if (supabase) {
         try {
           const { data: sbLeads, error: sbError } = await supabase
-            .from('leads')
+            .from('v_lead_attribution')
             .select('*')
-            .is('assigned_to', null)
-            .order('created_at', { ascending: false });
+            .is('closing_bdr_id', null)
+            .order('lead_created_at', { ascending: false });
 
           if (sbError) {
             console.warn('[leads-list] Supabase fallback error:', sbError.message);
           } else if (sbLeads && sbLeads.length > 0) {
             unassigned = sbLeads.map((l: any) => ({
-              id: l.id || `lead-sb-${l.email}`,
+              id: l.lead_id || `lead-sb-${l.lead_email}`,
               company_name: l.company_name || 'Unknown',
-              contact_email: l.email,
-              contact_name: l.contact_name || '',
-              title: l.title || '',
-              industry: l.industry || 'Other',
-              data_pool_name: l.data_pool_name || 'Live Stream',
+              contact_email: l.lead_email,
+              contact_name: l.contact_name || 'Prospect',
+              title: 'N/A',
+              industry: 'Other',
+              data_pool_name: 'Live Stream',
               status: 'unassigned',
-              created_at: l.created_at
+              created_at: l.lead_created_at
             }));
           }
         } catch (sbErr: any) {
